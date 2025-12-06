@@ -11,8 +11,6 @@
   const { default: axios } = require("axios");
   const cron = require('node-cron');
   const { Boom } = require("@hapi/boom");
-  const simpleGit = require("simple-git");
-  const git = simpleGit();
   const pino = require("pino");
   const fs = require('fs');
   const path = require('path');
@@ -160,30 +158,6 @@
         const sudoJid = (config.SUDO !== '' 
           ? config.SUDO.split(',')[0] 
           : sock.user.id.split(':')[0]) + '@s.whatsapp.net';
-
-        // Check for updates periodically (only if in a git repository)
-        const updateCheckInterval = setInterval(async () => {
-          try {
-            await git.fetch();
-            var commits = await git.log(["main..origin/main"]);
-            let updateMessage = "*_New updates available for X-BOT-MD_*\n\n";
-            
-            commits.all.map((commit, index) => {
-              updateMessage += '```' + (index + 1 + ". " + commit.message + "\n") + "```";
-            });
-
-            if (commits.total > 0) {
-              await sock.sendMessage(sudoJid, {
-                text: updateMessage + `\n_Type '${config.HANDLERS === "false" ? '' : config.HANDLERS}update now' to update the bot._`
-              });
-              clearInterval(updateCheckInterval);
-            }
-          } catch (error) {
-            // Not a git repository or git operation failed - disable update checks
-            console.log("Update check disabled: Not in a git repository");
-            clearInterval(updateCheckInterval);
-          }
-        }, 60000); // Check every minute
 
         // Try to join support group
         try {
