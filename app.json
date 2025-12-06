@@ -6,8 +6,8 @@
   "repository": "https://github.com/A-S-W-I-N-S-P-A-R-K-Y/X--BOT--MD",
   "stack": "container",
   "env": {
-    "SESSION_ID": {
-      "description": "Paste your WhatsApp Session ID here (Required).",
+    "PHONE_NUMBER": {
+      "description": "Enter your WhatsApp phone number with country code (no spaces or special characters). Example: 919876543210",
       "required": true
     },
     "HANDLERS": {

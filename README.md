@@ -16,20 +16,16 @@
 
 
 
-### SCAN QR
+### AUTHENTICATION
 
-2. Scan the QR and get the SESSION ID
-   <br>
+2. This bot now uses **Pairing Code** authentication instead of QR scanning.
    
-**Server 1**  
-<a href='https://x-bot-md-qr.koyeb.app' target="_blank">
-    <img alt='SCAN QR' src='https://img.shields.io/badge/Scan_qr-100000?style=for-the-badge&logo=scan&logoColor=white&labelColor=black&color=black'/>
-</a>
-
-**Server 2**  
-<a href='https://x-bot-md-qr.koyeb.app' target="_blank">
-    <img alt='SCAN QR' src='https://img.shields.io/badge/Scan_qr-100000?style=for-the-badge&logo=scan&logoColor=white&labelColor=black&color=black'/>
-</a>
+   **How to get your Pairing Code:**
+   - Set your phone number (with country code, no spaces or special characters) in the `PHONE_NUMBER` environment variable
+   - Example: For +1 234 567 8900, use: `12345678900`
+   - Start the bot and it will generate a pairing code
+   - Open WhatsApp on your phone > Settings > Linked Devices > Link a Device
+   - Enter the pairing code shown in the console/logs
 
 #### DEPLOY TO PANEL
 
@@ -58,7 +54,7 @@
 
 4. Now Deploy
     <br>
-<a href='https://app.koyeb.com/services/deploy?type=git&repository=github.com/A-S-W-I-N-S-P-A-R-K-Y/X--BOT--MD&branch=main&name=xbotmd&builder=dockerfile&env[SESSION_ID]=&env[WORK_TYPE]=public&env[HANDLERS]=.&env[BOT_INFO]=X-BOT-MD;ASWIN%20SPARKY;https://i.imgur.com/QH7T7u9.jpeg&env[SUDO]=917012984396&env[STICKER_DATA]=SPARKY&env[DATABASE_URL]&env[KOYEB_SERVICE_NAME]=xbotmd&env[KOYEB_API_KEY]' target="_blank"><img alt='DEPLOY' src='https://img.shields.io/badge/-DEPLOY-black?style=for-the-badge&logo=koyeb'/></a>
+<a href='https://app.koyeb.com/services/deploy?type=git&repository=github.com/A-S-W-I-N-S-P-A-R-K-Y/X--BOT--MD&branch=main&name=xbotmd&builder=dockerfile&env[PHONE_NUMBER]=&env[WORK_TYPE]=public&env[HANDLERS]=.&env[BOT_INFO]=X-BOT-MD;ASWIN%20SPARKY;https://i.imgur.com/QH7T7u9.jpeg&env[SUDO]=917012984396&env[STICKER_DATA]=SPARKY&env[DATABASE_URL]&env[KOYEB_SERVICE_NAME]=xbotmd&env[KOYEB_API_KEY]' target="_blank"><img alt='DEPLOY' src='https://img.shields.io/badge/-DEPLOY-black?style=for-the-badge&logo=koyeb'/></a>
 
 #### DEPLOY TO RENDER 
 

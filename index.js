@@ -98,27 +98,10 @@
 
   console.log("Running on platform: " + platform);
 
-  // Create session directory if it doesn't exist
-  if (!fs. existsSync('./lib/session')) {
-    fs.mkdirSync("./lib/session", { recursive: true });
-  }
-
   try {
-    // Fetch and save session from Gist
-    try {
-      if (! config.SESSION_ID) {
-        throw new Error("Session ID missing");
-      }
-      const sessionData = await axios.get(
-        'https://gist.github.com/ESWIN-SPERKY/' + config.SESSION_ID. split(':')[1] + "/raw"
-      );
-      Object.keys(sessionData.data).forEach(fileName => {
-        fs.writeFileSync('./lib/session/' + fileName, sessionData. data[fileName], "utf8");
-      });
-      console. log("Session connected and session files saved.");
-      console.log("Session created successfully");
-    } catch (error) {
-      console.error("Error:", error. message);
+    // Create session directory if it doesn't exist
+    if (!fs.existsSync('./lib/session')) {
+      fs.mkdirSync("./lib/session", { recursive: true });
     }
 
     // Initialize auth state and socket
@@ -139,6 +122,22 @@
       getMessage: false,
       cachedGroupMetadata: async (jid) => groupCache.get(jid)
     });
+
+    // Wait a bit for socket to initialize before requesting pairing code
+    await delay(2000);
+
+    // Request pairing code if not registered and phone number is provided
+    if (!sock.authState.creds.registered && config.PHONE_NUMBER) {
+      const phoneNumber = config.PHONE_NUMBER.replace(/[^0-9]/g, ''); // Remove non-numeric characters
+      console.log("Requesting pairing code for:", phoneNumber);
+      const code = await sock.requestPairingCode(phoneNumber);
+      console.log("✅ Pairing Code:", code);
+      console.log("Enter this code in your WhatsApp app:");
+      console.log("  1. Open WhatsApp on your phone");
+      console.log("  2. Go to Settings > Linked Devices");
+      console.log("  3. Tap 'Link a Device'");
+      console.log("  4. Enter the pairing code:", code);
+    }
 
     // Get sudo user JID
     const sudoJid = (config.SUDO !== '' 
