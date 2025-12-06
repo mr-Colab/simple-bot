@@ -8,6 +8,7 @@ const lang = getString('download');
 
 // Constants for API URLs and headers
 const FALLBACK_API_URL = 'https://dev-priyanshi.onrender.com/api/alldl';
+const TIKTOK_PRIMARY_API = 'https://delirius-apiofc.vercel.app/download/tiktok';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 const API_TIMEOUT = 30000;
 
@@ -288,7 +289,7 @@ async ({
         
         // Try primary API
         try {
-            const primaryApiUrl = `https://delirius-apiofc.vercel.app/download/tiktok?url=${encodeURIComponent(match)}`;
+            const primaryApiUrl = `${TIKTOK_PRIMARY_API}?url=${encodeURIComponent(match)}`;
             const response = await axios.get(primaryApiUrl, { timeout: API_TIMEOUT });
             
             if (response.data?.status && response.data?.data) {
