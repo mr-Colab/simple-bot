@@ -391,3 +391,94 @@ Sparky({
         }
     }
 });
+
+// ==================== SEND AUDIO TO CHANNEL (chmp3) ====================
+Sparky({
+    name: "chmp3",
+    fromMe: isPublic,
+    desc: "Send replied audio to WhatsApp channel",
+    category: "converters",
+}, async ({ client, m, args }) => {
+    let tempInput = null;
+    let tempOutput = null;
+    try {
+        // Check if args contains channel JID
+        const channelJid = args ? args.trim() : null;
+        
+        if (!channelJid) {
+            return m.reply('*❌ Please provide channel JID!*\n\n*Usage:* Reply to audio with `.chmp3 <channel_jid>`\n*Example:* `.chmp3 120363396379901844@newsletter`');
+        }
+
+        // Validate channel JID format
+        if (!channelJid.endsWith('@newsletter')) {
+            return m.reply('*❌ Invalid channel JID!*\n\nChannel JID must end with `@newsletter`');
+        }
+
+        if (!m.quoted) {
+            return m.reply('*❌ Please reply to an audio message!*\n\n*Usage:* Reply to audio with `.chmp3 <channel_jid>`');
+        }
+        
+        // Check if quoted message has audio
+        const quotedType = Array.isArray(m.quoted.mtype) ? m.quoted.mtype[0] : String(m.quoted.mtype || '');
+        
+        if (!quotedType.includes('audio') && !quotedType.includes('Audio')) {
+            return m.reply('*❌ Please reply to an audio message!*\n\n*Usage:* Reply to audio with `.chmp3 <channel_jid>`');
+        }
+
+        await m.react('⏳');
+
+        // Download the audio
+        const mediaBuffer = await m.quoted.download();
+
+        // Use os.tmpdir() for temp files
+        tempInput = path.join(os.tmpdir(), `chmp3_input_${Date.now()}.mp3`);
+        tempOutput = path.join(os.tmpdir(), `chmp3_output_${Date.now()}.mp3`);
+
+        fs.writeFileSync(tempInput, mediaBuffer);
+
+        // Convert audio to proper format using ffmpeg to prevent corruption
+        await new Promise((resolve, reject) => {
+            const ffmpegCmd = `"${ffmpegPath}" -i "${tempInput}" -acodec libmp3lame -b:a 128k -ar 44100 -ac 2 "${tempOutput}" -y`;
+            exec(ffmpegCmd, (error, stdout, stderr) => {
+                if (error) {
+                    console.error('FFmpeg stderr:', stderr);
+                    reject(new Error('FFmpeg conversion failed'));
+                } else {
+                    resolve();
+                }
+            });
+        });
+
+        const audioBuffer = fs.readFileSync(tempOutput);
+
+        // Send audio to channel
+        await client.sendMessage(channelJid, {
+            audio: audioBuffer,
+            mimetype: 'audio/mpeg',
+            ptt: false
+        });
+
+        await m.react('✅');
+        await m.reply(`*✅ Audio sent successfully to channel!*\n\n*Channel:* ${channelJid}`);
+
+    } catch (error) {
+        console.error('ChMp3 error:', error);
+        await m.react('❌');
+        
+        let errorMessage = '*❌ Failed to send audio to channel!*\n\n';
+        errorMessage += `*Error:* ${error.message || 'Unknown error'}\n\nMake sure:\n`;
+        errorMessage += '1. You replied to an audio message\n';
+        errorMessage += '2. Channel JID is correct\n';
+        errorMessage += '3. Bot has permission to send messages to the channel';
+        
+        await m.reply(errorMessage);
+    } finally {
+        // Clean up temp files
+        try {
+            if (tempInput && fs.existsSync(tempInput)) fs.unlinkSync(tempInput);
+            if (tempOutput && fs.existsSync(tempOutput)) fs.unlinkSync(tempOutput);
+        } catch (cleanupError) {
+            console.error('Failed to clean up temp files:', cleanupError);
+        }
+    }
+});
