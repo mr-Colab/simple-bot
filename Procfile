@@ -1,1 +1,1 @@
-web: npm run multi
+web: npm start
