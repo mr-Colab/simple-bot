@@ -1,13 +1,13 @@
-const Jimp = require("jimp");
+const { Jimp } = require("jimp");
 
 async function generateProfilePicture(buffer) {
 	const jimp = await Jimp.read(buffer);
 	const min = jimp.getWidth();
 	const max = jimp.getHeight();
-	const cropped = jimp.crop(0, 0, min, max);
+	const cropped = jimp.crop({ x: 0, y: 0, w: min, h: max });
 	return {
-		img: await cropped.scaleToFit(324, 720).getBufferAsync(Jimp.MIME_JPEG),
-		preview: await cropped.normalize().getBufferAsync(Jimp.MIME_JPEG)
+		img: await cropped.scaleToFit({ w: 324, h: 720 }).getBuffer("image/jpeg"),
+		preview: await cropped.normalize().getBuffer("image/jpeg")
 	};
 }
 
