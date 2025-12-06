@@ -128,37 +128,6 @@
       cachedGroupMetadata: async (jid) => groupCache.get(jid)
     });
 
-    // Wait for socket to initialize before requesting pairing code
-    await delay(SOCKET_INIT_DELAY);
-
-    // Request pairing code if not registered and phone number is provided
-    if (!sock.authState.creds.registered && config.PHONE_NUMBER) {
-      const phoneNumber = config.PHONE_NUMBER.replace(/[^0-9]/g, ''); // Remove non-numeric characters
-      
-      // Validate phone number format (must have at least 10 digits with country code)
-      if (phoneNumber.length < 10) {
-        console.error("❌ Invalid phone number format.Please provide phone number with country code (e.g., 919876543210)");
-        throw new Error("Invalid PHONE_NUMBER format");
-      }
-      
-      console.log("Requesting pairing code for:", phoneNumber);
-      const code = await sock.requestPairingCode(phoneNumber);
-      console.log("✅ Pairing Code:", code);
-      console.log("Enter this code in your WhatsApp app:");
-      console.log("  1.Open WhatsApp on your phone");
-      console.log("  2.Go to Settings > Linked Devices");
-      console.log("  3.Tap 'Link a Device'");
-      console.log("  4. Enter the pairing code:", code);
-    }
-
-    // Sync database
-    try {
-      await config.DATABASE.sync;
-      console.log("Database synced.");
-    } catch (error) {
-      console.error("Error while syncing database:", error);
-    }
-
     // Load external plugins from database
     async function loadExternalPlugins() {
       try {
@@ -179,10 +148,10 @@
       }
     }
 
-    // Connection update handler
+    // Connection update handler - set up immediately after socket creation
     sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
       if (connection === "connecting") {
-        console.log("Connecting.. .");
+        console.log("Connecting...");
       } else if (connection === 'open') {
         await loadExternalPlugins();
         console.log("Connected.");
@@ -268,6 +237,7 @@ PM Disabler: ${config.DISABLE_PM ? '✅' : '❌'}\`\`\``;
         }
       } else if (connection === 'close') {
         const statusCode = new Boom(lastDisconnect?.error)?.output.statusCode;
+        console.log('Connection closed. Status:', statusCode, 'Error:', lastDisconnect?.error?.message);
         if (statusCode === DisconnectReason.connectionReplaced) {
           console.log("Connection replaced.  Logout current session first.");
           await sock.logout();
@@ -278,6 +248,49 @@ PM Disabler: ${config.DISABLE_PM ? '✅' : '❌'}\`\`\``;
         }
       }
     });
+
+    // Save credentials on update
+    sock.ev.on("creds.update", saveCreds);
+
+    // Call handler
+    sock.ev.on("call", async (calls) => {
+      for (let call of calls) {
+        await callAutomation(sock, call);
+      }
+    });
+
+    // Wait for socket to initialize before requesting pairing code
+    await delay(SOCKET_INIT_DELAY);
+
+    // Request pairing code if not registered and phone number is provided
+    if (!sock.authState.creds.registered && config.PHONE_NUMBER) {
+      const phoneNumber = config.PHONE_NUMBER.replace(/[^0-9]/g, ''); // Remove non-numeric characters
+      
+      // Validate phone number format (must have at least 10 digits with country code)
+      if (phoneNumber.length < 10) {
+        console.error("❌ Invalid phone number format.Please provide phone number with country code (e.g., 919876543210)");
+        throw new Error("Invalid PHONE_NUMBER format");
+      }
+      
+      console.log("Requesting pairing code for:", phoneNumber);
+      const code = await sock.requestPairingCode(phoneNumber);
+      console.log("✅ Pairing Code:", code);
+      console.log("Enter this code in your WhatsApp app:");
+      console.log("  1.Open WhatsApp on your phone");
+      console.log("  2.Go to Settings > Linked Devices");
+      console.log("  3.Tap 'Link a Device'");
+      console.log("  4. Enter the pairing code:", code);
+    } else if (sock.authState.creds.registered) {
+      console.log("✅ Device already registered, connecting...");
+    }
+
+    // Sync database
+    try {
+      await config.DATABASE.sync;
+      console.log("Database synced.");
+    } catch (error) {
+      console.error("Error while syncing database:", error);
+    }
 
     // Message handler
     sock.ev.on('messages.upsert', async (messageUpdate) => {
@@ -316,16 +329,6 @@ PM Disabler: ${config.DISABLE_PM ? '✅' : '❌'}\`\`\``;
           console.log(error);
         }
       });
-    });
-
-    // Save credentials on update
-    sock.ev.on("creds.update", saveCreds);
-
-    // Call handler
-    sock.ev.on("call", async (calls) => {
-      for (let call of calls) {
-        await callAutomation(sock, call);
-      }
     });
 
   } catch (error) {
