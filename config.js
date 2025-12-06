@@ -1,4 +1,4 @@
-tinfs = require("fs");
+fs = require("fs");
 const dotenv = require("dotenv");
 const {
 	Sequelize
