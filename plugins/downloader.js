@@ -68,66 +68,141 @@ Sparky({
     }
 });
 
+// ==================== AI/GPT COMMAND ====================
 Sparky({
-    name: "gpt",
-    fromMe: true,
+    name: "ai|ask|gpt",
+    fromMe: isPublic,
     category: "misc",
-    desc: "Query GPT-3 with a prompt"
-},
-async ({ m, client, args }) => {
-    // Get arguments either from command or quoted message
-    args = args || m.quoted?.text;
-    
-    // Check if prompt exists
-    if (!args) return await m.reply("Please provide a prompt or quote a message");
-    
+    desc: "AI assistant powered by Aria API"
+}, async ({ m, client, args }) => {
     try {
-        // Make API request
-        const q = await getJson(`${config.API}/api/search/gpt3?search=${encodeURIComponent(args)}`);
+        const question = args || m.quoted?.text;
         
-        // Check if response is valid
-        if (!q?.data) throw new Error("Invalid API response");
-        
-        // Send the response
-        return await m.reply(q.data);
+        if (!question || question.length < 2) {
+            return await m.reply('🤖 *AI Assistant*\n\nPlease provide a question or message.\nExample: .ai What is artificial intelligence?');
+        }
+
+        await m.react('⏳');
+
+        // Aria API configuration
+        const ARIA_API = "https://kaiz-apis.gleeze.com/api/aria";
+        const API_KEY = "cf2ca612-296f-45ba-abbc-473f18f991eb";
+
+        // Get user ID for context
+        const userId = m.jid.split('@')[0];
+
+        // Build API URL
+        const apiUrl = `${ARIA_API}?ask=${encodeURIComponent(question)}&uid=${userId}&apikey=${API_KEY}`;
+
+        // Call Aria API
+        const response = await axios.get(apiUrl, { 
+            timeout: 30000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+
+        const ariaData = response.data;
+
+        if (!ariaData || !ariaData.response) {
+            throw new Error('No response from AI API');
+        }
+
+        // Format the response
+        let formattedResponse = ariaData.response;
+
+        // Truncate if too long (WhatsApp message limit)
+        if (formattedResponse.length > 3500) {
+            formattedResponse = formattedResponse.substring(0, 3500) + '...\n\n*Response truncated due to length*';
+        }
+
+        // Send the AI response
+        await m.reply(`🤖 *AI Response*\n\n${formattedResponse}`);
+
+        await m.react('✅');
+
     } catch (error) {
-        console.error("GPT Error:", error);
-        return await m.reply("An error occurred while processing your request");
+        console.error('AI Command Error:', error);
+        await m.react('❌');
+        await m.reply(`❌ Error: ${error.message || 'Failed to get AI response. Please try again.'}`);
     }
 });
-// Sparky({
-//     name: "apk",
-//     fromMe: isPublic,
-//     category: "downloader",
-//     desc: "Find and download APKs from Aptoide by app ID",
-// },
-// async ({
-//     m, client, args
-// }) => {
-//     let appId = args || m.quoted?.text;
-//     if (!appId) return await m.reply(lang.NEED_Q);
 
-//     try {
-//         await m.react('⬇️');
-
-//         const { result: appInfo } = await getJson(AP + "download/aptoide?id=" + appId);
+// ==================== APK DOWNLOADER ====================
+Sparky({
+    name: "apk|modapk|apkdownload",
+    fromMe: isPublic,
+    category: "downloader",
+    desc: "Download APK files by app name"
+}, async ({ m, client, args }) => {
+    try {
+        const appName = args || m.quoted?.text;
         
-//         await client.sendMessage(m.jid, {
-//             document: {
-//                 url: appInfo.link
-//             },
-//             fileName: appInfo.appname,
-//             caption: `App Name: ${appInfo.appname}\nDeveloper: ${appInfo.developer}`,
-//             mimetype: "application/vnd.android.package-archive"
-//         }, {
-//             quoted: m
-//         });
-//         await m.react('✅');
-//     } catch (error) {
-//         await m.react('❌');
-//         console.error(error);
-//     }
-// });
+        if (!appName) {
+            return await m.reply('📦 *APK Downloader*\n\nPlease provide an app name.\nExample: .apk whatsapp');
+        }
+
+        await m.react('⏳');
+
+        // Prepare the NexOracle API URL
+        const apiUrl = `https://api.nexoracle.com/downloader/apk`;
+        const params = {
+            apikey: 'free_key@maher_apis',
+            q: appName.trim()
+        };
+
+        // Call the NexOracle API
+        const response = await axios.get(apiUrl, { params, timeout: 15000 });
+
+        // Check if the API response is valid
+        if (!response.data || response.data.status !== 200 || !response.data.result) {
+            throw new Error('Unable to find the APK');
+        }
+
+        // Extract the APK details
+        const { name, lastup, package: pkg, size, icon, dllink } = response.data.result;
+
+        // Send app info with thumbnail
+        await client.sendMessage(m.jid, {
+            image: { url: icon },
+            caption: `📦 *Downloading ${name}... Please wait.*`
+        }, { quoted: m });
+
+        // Download the APK file
+        const apkResponse = await axios.get(dllink, { 
+            responseType: 'arraybuffer',
+            timeout: 30000
+        });
+
+        if (!apkResponse.data) {
+            throw new Error('Failed to download the APK');
+        }
+
+        const apkBuffer = Buffer.from(apkResponse.data, 'binary');
+
+        // Prepare the message with APK details
+        const message = `📦 *APK Details:*\n\n` +
+          `🔖 *Name:* ${name}\n` +
+          `📅 *Last Updated:* ${lastup}\n` +
+          `📦 *Package:* ${pkg}\n` +
+          `📏 *Size:* ${size}`;
+
+        // Send the APK file as a document
+        await client.sendMessage(m.jid, {
+            document: apkBuffer,
+            mimetype: 'application/vnd.android.package-archive',
+            fileName: `${name}.apk`,
+            caption: message
+        }, { quoted: m });
+
+        await m.react('✅');
+
+    } catch (error) {
+        console.error('APK Command Error:', error);
+        await m.react('❌');
+        await m.reply(`❌ Error: ${error.message || 'Unable to fetch APK details'}`);
+    }
+});
 
 Sparky(
     {
