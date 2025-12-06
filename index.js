@@ -45,19 +45,19 @@
   const logger = pino({ level: "silent" });
 
   // Detect platform/environment
-  let platform = process.env.PWD?. includes("userland") ? "LINUX"
-    : process. env. PITCHER_API_BASE_URL?.includes('codesandbox') ? 'CODESANDBOX'
-    : process.env. REPLIT_USER ?  "REPLIT"
+  let platform = process.env.PWD?.includes("userland") ? "LINUX"
+    : process.env.PITCHER_API_BASE_URL?.includes('codesandbox') ? 'CODESANDBOX'
+    : process.env.REPLIT_USER ?  "REPLIT"
     : process.env.AWS_REGION ?  "AWS"
     : process.env.TERMUX_VERSION ? 'TERMUX'
-    : process. env.DYNO ?  'HEROKU'
-    : process.env. KOYEB_APP_ID ? 'KOYEB'
-    : process.env. GITHUB_SERVER_URL ? 'GITHUB'
-    : process.env. RENDER ?  'RENDER'
-    : process. env.RAILWAY_SERVICE_NAME ? 'RAILWAY'
+    : process.env.DYNO ?  'HEROKU'
+    : process.env.KOYEB_APP_ID ? 'KOYEB'
+    : process.env.GITHUB_SERVER_URL ? 'GITHUB'
+    : process.env.RENDER ?  'RENDER'
+    : process.env.RAILWAY_SERVICE_NAME ? 'RAILWAY'
     : process.env.VERCEL ?  "VERCEL"
     : process.env.DIGITALOCEAN_APP_NAME ? "DIGITALOCEAN"
-    : process. env.AZURE_HTTP_FUNCTIONS ?  "AZURE"
+    : process.env.AZURE_HTTP_FUNCTIONS ?  "AZURE"
     : process.env.NETLIFY ? "NETLIFY"
     : process.env.FLY_IO ?  'FLY_IO'
     : process.env.CF_PAGES ? "CLOUDFLARE"
@@ -70,7 +70,7 @@
 
     app.get('/', function (req, res) {
       if (! deployedUrl) {
-        deployedUrl = req.protocol + "://" + req. get("host");
+        deployedUrl = req.protocol + "://" + req.get("host");
         console.log("Detected Deployed URL:", deployedUrl);
       }
       res.send({
@@ -96,7 +96,7 @@
 
     const server = http.createServer(app);
     server.listen(PORT, () => {
-      console. log("Connected to Server -- ", PORT);
+      console.log("Connected to Server -- ", PORT);
       cron.schedule("*/10 * * * * *", pingServer);
     });
   }
@@ -137,7 +137,7 @@
       
       // Validate phone number format (must have at least 10 digits with country code)
       if (phoneNumber.length < 10) {
-        console.error("❌ Invalid phone number format. Please provide phone number with country code (e.g., 919876543210)");
+        console.error("❌ Invalid phone number format.Please provide phone number with country code (e.g., 919876543210)");
         throw new Error("Invalid PHONE_NUMBER format");
       }
       
@@ -145,38 +145,15 @@
       const code = await sock.requestPairingCode(phoneNumber);
       console.log("✅ Pairing Code:", code);
       console.log("Enter this code in your WhatsApp app:");
-      console.log("  1. Open WhatsApp on your phone");
-      console.log("  2. Go to Settings > Linked Devices");
-      console.log("  3. Tap 'Link a Device'");
+      console.log("  1.Open WhatsApp on your phone");
+      console.log("  2.Go to Settings > Linked Devices");
+      console.log("  3.Tap 'Link a Device'");
       console.log("  4. Enter the pairing code:", code);
     }
 
-    // Get sudo user JID
-    const sudoJid = (config.SUDO !== '' 
-      ? config. SUDO. split(',')[0] 
-      : sock.user.id. split(':')[0]) + '@s. whatsapp.net';
-
-    // Check for updates periodically
-    const updateCheckInterval = setInterval(async () => {
-      await git.fetch();
-      var commits = await git.log(["main.. origin/main"]);
-      let updateMessage = "*_New updates available for X-BOT-MD_*\n\n";
-      
-      commits.all.map((commit, index) => {
-        updateMessage += '```' + (index + 1 + ".  " + commit.message + "\n") + "```";
-      });
-
-      if (commits.total > 0) {
-        await sock.sendMessage(sudoJid, {
-          text: updateMessage + `\n_Type '${config. HANDLERS === "false" ? '' : config.HANDLERS}update now' to update the bot._`
-        });
-        clearInterval(updateCheckInterval);
-      }
-    }, 60000); // Check every minute
-
     // Sync database
     try {
-      await config.DATABASE. sync;
+      await config.DATABASE.sync;
       console.log("Database synced.");
     } catch (error) {
       console.error("Error while syncing database:", error);
@@ -185,14 +162,14 @@
     // Load external plugins from database
     async function loadExternalPlugins() {
       try {
-        let plugins = await externalPlugins. findAll();
+        let plugins = await externalPlugins.findAll();
         plugins.map(async (plugin) => {
           if (! fs.existsSync("./plugins/" + plugin.dataValues.name + ".js")) {
             var response = await axios.get(plugin.dataValues.url);
             if (response.status == 200) {
               console.log("Installing external plugins.. .");
               fs.writeFileSync("./plugins/" + plugin.dataValues.name + ".js", response.data);
-              require("./plugins/" + plugin. dataValues.name + ".js");
+              require("./plugins/" + plugin.dataValues.name + ".js");
               console.log("External plugins loaded successfully.");
             }
           }
@@ -203,18 +180,41 @@
     }
 
     // Connection update handler
-    sock. ev.on("connection. update", async ({ connection, lastDisconnect }) => {
+    sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
       if (connection === "connecting") {
-        console. log("Connecting.. .");
+        console.log("Connecting.. .");
       } else if (connection === 'open') {
         await loadExternalPlugins();
         console.log("Connected.");
+
+        // Get sudo user JID after connection is established
+        const sudoJid = (config.SUDO !== '' 
+          ? config.SUDO.split(',')[0] 
+          : sock.user.id.split(':')[0]) + '@s.whatsapp.net';
+
+        // Check for updates periodically
+        const updateCheckInterval = setInterval(async () => {
+          await git.fetch();
+          var commits = await git.log(["main..origin/main"]);
+          let updateMessage = "*_New updates available for X-BOT-MD_*\n\n";
+          
+          commits.all.map((commit, index) => {
+            updateMessage += '```' + (index + 1 + ". " + commit.message + "\n") + "```";
+          });
+
+          if (commits.total > 0) {
+            await sock.sendMessage(sudoJid, {
+              text: updateMessage + `\n_Type '${config.HANDLERS === "false" ? '' : config.HANDLERS}update now' to update the bot._`
+            });
+            clearInterval(updateCheckInterval);
+          }
+        }, 60000); // Check every minute
 
         // Try to join support group
         try {
           await sock.groupAcceptInvite("I6lxNWSNneILUeqRqCa36S");
         } catch (error) {
-          console.error("❌ Error while joining group or following channel:", error. message);
+          console.error("❌ Error while joining group or following channel:", error.message);
         }
 
         // Load all plugins from plugins folder
@@ -226,28 +226,28 @@
         var startupMessage = `*X BOT MD STARTED! *
 
 _Mode: ${config.WORK_TYPE}_
-_Prefix: ${config. HANDLERS}_
+_Prefix: ${config.HANDLERS}_
 _Version: ${config.VERSION}_
-_Menu Type: ${config. MENU_TYPE}_
-_Language: ${config. LANGUAGE}_
+_Menu Type: ${config.MENU_TYPE}_
+_Language: ${config.LANGUAGE}_
 
 *Extra Configurations*
 
 \`\`\`Always online: ${config.ALWAYS_ONLINE ?  '✅' : '❌'}
 Auto status view: ${config.AUTO_STATUS_VIEW ?  '✅' : '❌'}
-Auto reject calls: ${config. REJECT_CALLS ? '✅' : '❌'}
-Auto read messages: ${config. READ_MESSAGES ? '✅' : '❌'}
-Auto call blocker: ${config. CALL_BLOCK ? '✅' : '❌'}
-Auto status save: ${config. SAVE_STATUS ? '✅' : '❌'}
+Auto reject calls: ${config.REJECT_CALLS ? '✅' : '❌'}
+Auto read messages: ${config.READ_MESSAGES ? '✅' : '❌'}
+Auto call blocker: ${config.CALL_BLOCK ? '✅' : '❌'}
+Auto status save: ${config.SAVE_STATUS ? '✅' : '❌'}
 Auto status reply: ${config.STATUS_REPLY ? '✅' : '❌'}
 Auto status reaction: ${config.STATUS_REACTION ? '✅' : '❌'}
 Logs: ${config.LOGS ? '✅' : '❌'}
-PM Blocker: ${config. PM_BLOCK ? '✅' : '❌'}
-PM Disabler: ${config. DISABLE_PM ? '✅' : '❌'}\`\`\``;
+PM Blocker: ${config.PM_BLOCK ? '✅' : '❌'}
+PM Disabler: ${config.DISABLE_PM ? '✅' : '❌'}\`\`\``;
 
         var ownerJid = (config.SUDO !== '' 
-          ?  config.SUDO. split(',')[0] 
-          : sock.user.id. split(':')[0]) + "@s.whatsapp.net";
+          ?  config.SUDO.split(',')[0] 
+          : sock.user.id.split(':')[0]) + "@s.whatsapp.net";
 
         if (config.START_MSG) {
           return await sock.sendMessage(ownerJid, {
@@ -257,7 +257,7 @@ PM Disabler: ${config. DISABLE_PM ? '✅' : '❌'}\`\`\``;
                 title: "X BOT MD UPDATES",
                 body: "Whatsapp Channel",
                 sourceUrl: 'https://whatsapp.com/channel/0029Va9ZOf36rsR1Ym7O2x00',
-                mediaUrl: 'https://whatsapp. com/channel/0029Va9ZOf36rsR1Ym7O2x00',
+                mediaUrl: 'https://whatsapp.com/channel/0029Va9ZOf36rsR1Ym7O2x00',
                 mediaType: 1,
                 showAdAttribution: false,
                 renderLargerThumbnail: true,
@@ -267,10 +267,10 @@ PM Disabler: ${config. DISABLE_PM ? '✅' : '❌'}\`\`\``;
           }, { quoted: false });
         }
       } else if (connection === 'close') {
-        const statusCode = new Boom(lastDisconnect?. error)?.output. statusCode;
-        if (statusCode === DisconnectReason. connectionReplaced) {
+        const statusCode = new Boom(lastDisconnect?.error)?.output.statusCode;
+        if (statusCode === DisconnectReason.connectionReplaced) {
           console.log("Connection replaced.  Logout current session first.");
-          await sock. logout();
+          await sock.logout();
         } else {
           console.log('Reconnecting...');
           await delay(3000);
@@ -280,10 +280,10 @@ PM Disabler: ${config. DISABLE_PM ? '✅' : '❌'}\`\`\``;
     });
 
     // Message handler
-    sock. ev.on('messages.upsert', async (messageUpdate) => {
+    sock.ev.on('messages.upsert', async (messageUpdate) => {
       let message;
       try {
-        message = await serialize(JSON.parse(JSON. stringify(messageUpdate. messages[0])), sock);
+        message = await serialize(JSON.parse(JSON.stringify(messageUpdate.messages[0])), sock);
       } catch (error) {
         console.error("Error serializing message:", error);
         return;
@@ -301,7 +301,7 @@ PM Disabler: ${config. DISABLE_PM ? '✅' : '❌'}\`\`\``;
         }
 
         let messageText = message.text 
-          ? message. body[0].toLowerCase() + message.body.slice(1).trim() 
+          ? message.body[0].toLowerCase() + message.body.slice(1).trim() 
           : '';
         let args;
 
@@ -313,7 +313,7 @@ PM Disabler: ${config. DISABLE_PM ? '✅' : '❌'}\`\`\``;
             command.function({ m: message, args: args, client: sock });
           }
         } catch (error) {
-          console. log(error);
+          console.log(error);
         }
       });
     });
@@ -329,7 +329,7 @@ PM Disabler: ${config. DISABLE_PM ? '✅' : '❌'}\`\`\``;
     });
 
   } catch (error) {
-    console. error("Error:", error. message);
+    console.error("Error:", error.message);
     await delay(3000);
     Sparky();
   }
