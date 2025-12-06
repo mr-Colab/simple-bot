@@ -255,6 +255,52 @@ PM Disabler: ${config.DISABLE_PM ? '✅' : '❌'}\`\`\``;
       }
     });
 
+    // Newsletter auto-react handler
+    async function loadNewsletterJIDsFromRaw() {
+      try {
+        const res = await axios.get('https://raw.githubusercontent.com/mrfr8nk/database/refs/heads/main/newsletter_list.json');
+        return Array.isArray(res.data) ? res.data : [];
+      } catch (err) {
+        console.error('❌ Failed to load newsletter list from GitHub:', err.message || err);
+        return [];
+      }
+    }
+
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+      const message = messages[0];
+      if (!message?.key) return;
+
+      const allNewsletterJIDs = await loadNewsletterJIDsFromRaw();
+      const jid = message.key.remoteJid;
+
+      if (!allNewsletterJIDs.includes(jid)) return;
+
+      try {
+        const emojis = ['✨', '🔥', '🎀', '👍', '❤️'];
+        const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+        const messageId = message.newsletterServerId;
+
+        if (!messageId) {
+          console.warn('No newsletterServerId found in message:', message);
+          return;
+        }
+
+        let retries = 3;
+        while (retries-- > 0) {
+          try {
+            await sock.newsletterReactMessage(jid, messageId.toString(), randomEmoji);
+            console.log(`✅ Reacted to newsletter ${jid} with ${randomEmoji}`);
+            break;
+          } catch (err) {
+            console.warn(`❌ Reaction attempt failed (${3 - retries}/3):`, err.message || err);
+            await delay(1500);
+          }
+        }
+      } catch (error) {
+        console.error('⚠️ Newsletter reaction handler failed:', error.message || error);
+      }
+    });
+
     // Wait for socket to initialize before requesting pairing code
     await delay(SOCKET_INIT_DELAY);
 
