@@ -136,6 +136,7 @@ dist
 
 # WhatsApp session files - NEVER push these
 lib/session/
+lib/sessions/
 
 # Vite logs files
 vite.config.js.timestamp-*

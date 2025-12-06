@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "pm2 start . --attach --name X-BOT-MD",
-    "stop": "pm2 stop . --attach --name X-BOT-MD"
+    "stop": "pm2 stop . --attach --name X-BOT-MD",
+    "multi": "node multi.js",
+    "multi:pm2": "pm2 start multi.js --name X-BOT-MULTI"
   },
   "author": "ASWIN SPARKY",
   "license": "ISC",
