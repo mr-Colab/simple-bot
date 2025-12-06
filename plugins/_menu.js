@@ -117,17 +117,19 @@ Sparky({
 
             return await client.sendMessage(m.jid, {
                 image: { url: config.BOT_INFO.split(";")[2] || "https://i.imgur.com/Q2UNwXR.jpg" },
-                caption: `╭━━━〔 *${config.BOT_INFO.split(";")[0]}* 〕━━━╮
-┃
-┃ *👤 User:* ${pushname}
-┃ *👑 Owner:* ${config.BOT_INFO.split(";")[1]}
-┃ *⏰ Uptime:* ${uptime}
-┃ *📦 RAM:* ${ramUsed}MB / ${ramTotal}MB
-┃ *🎐 Prefix:* ${m.prefix}
-┃ *💻 Platform:* ${SERVER}
-┃ *📂 Commands:* ${commands.length}
-┃
-╰━━━━━━━━━━━━━━━━━━╯
+                caption: `╭━━━〔 *${config.BOT_INFO.split(";")[0].toLowerCase()}* 〕━━━╮
+┃╭━━━━━━━━━━━━━◉
+┃┃•  owner : ${config.BOT_INFO.split(";")[1].toLowerCase()}
+┃┃•  mode : ${config.WORK_TYPE.toLowerCase()}
+┃┃•  prefix : ${m.prefix}
+┃┃•  platform : ${SERVER}
+┃┃•  date : ${date}
+┃┃•  time : ${time}
+┃┃•  uptime : ${uptime}
+┃┃•  ram : ${ramUsed}MB / ${ramTotal}MB
+┃┃•  plugins : ${commands.length}
+┃╰━━━━━━━━━━━━━◉
+╰━━━━━━━━━━━━━>
 
 *Select a category from the button below:*`,
                 buttons: [
