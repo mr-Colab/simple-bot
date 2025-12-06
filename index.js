@@ -193,9 +193,25 @@
         }
 
         // Load all plugins from plugins folder
-        fs.readdirSync("./plugins")
-          .filter(file => path.extname(file) === '.js')
-          .forEach(file => require("./plugins/" + file));
+        try {
+          const pluginFiles = fs.readdirSync("./plugins")
+            .filter(file => path.extname(file) === '.js');
+          
+          console.log(`Loading ${pluginFiles.length} plugin(s)...`);
+          
+          pluginFiles.forEach(file => {
+            try {
+              require("./plugins/" + file);
+              console.log(`✅ Loaded plugin: ${file}`);
+            } catch (error) {
+              console.error(`❌ Failed to load plugin ${file}:`, error.message);
+            }
+          });
+          
+          console.log(`Total plugins loaded: ${pluginFiles.length}`);
+        } catch (error) {
+          console.error("❌ Error loading plugins:", error.message);
+        }
 
         // Build startup message
         var startupMessage = `*X BOT MD STARTED! *
