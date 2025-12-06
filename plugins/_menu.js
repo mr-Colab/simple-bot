@@ -13,211 +13,248 @@ const menust = config.MENU_FONT;
 const style = font[menust];
 const more = String.fromCharCode(8206);
 const readMore = more.repeat(4001);
-const _0x3471ce=_0x4c73;function _0x5149(){const _0x99704b=['HEROKU','PITCHER_API_BASE_URL','PWD','codesandbox','1460490jcYrnC','DIGITALOCEAN','REPLIT','13089848qhFTfM','CLOUDFLARE','GITHUB','TERMUX_VERSION','REPLIT_USER','env','32199750KLjfkJ','18wOomgQ','5701444PXyScu','AZURE','7366gnnTKS','846315zOxTke','RAILWAY','NETLIFY','VPS','AWS','GITHUB_SERVER_URL','DYNO','1131GsaKWJ','SPACE_ID','HUGGINGFACE','KOYEB','CODESANDBOX','RENDER','FLY_IO','5671732abHOue','AZURE_HTTP_FUNCTIONS','DIGITALOCEAN_APP_NAME','CF_PAGES','VERCEL','LINUX','userland'];_0x5149=function(){return _0x99704b;};return _0x5149();}(function(_0x14bc52,_0x9e047e){const _0x5ac994=_0x4c73,_0x256c17=_0x14bc52();while(!![]){try{const _0x1155d4=parseInt(_0x5ac994(0x14a))/0x1+parseInt(_0x5ac994(0x130))/0x2*(-parseInt(_0x5ac994(0x138))/0x3)+parseInt(_0x5ac994(0x13f))/0x4+parseInt(_0x5ac994(0x131))/0x5*(parseInt(_0x5ac994(0x12d))/0x6)+parseInt(_0x5ac994(0x12e))/0x7+parseInt(_0x5ac994(0x126))/0x8+-parseInt(_0x5ac994(0x12c))/0x9;if(_0x1155d4===_0x9e047e)break;else _0x256c17['push'](_0x256c17['shift']());}catch(_0x5dbaeb){_0x256c17['push'](_0x256c17['shift']());}}}(_0x5149,0xd4926));function _0x4c73(_0x3c6eb7,_0x511653){const _0x514924=_0x5149();return _0x4c73=function(_0x4c737c,_0x3e9250){_0x4c737c=_0x4c737c-0x125;let _0x40d9b6=_0x514924[_0x4c737c];return _0x40d9b6;},_0x4c73(_0x3c6eb7,_0x511653);}let SERVER=process[_0x3471ce(0x12b)][_0x3471ce(0x148)]?.['includes'](_0x3471ce(0x145))?_0x3471ce(0x144):process[_0x3471ce(0x12b)][_0x3471ce(0x147)]?.['includes'](_0x3471ce(0x149))?_0x3471ce(0x13c):process['env'][_0x3471ce(0x12a)]?_0x3471ce(0x125):process[_0x3471ce(0x12b)]['AWS_REGION']?_0x3471ce(0x135):process['env'][_0x3471ce(0x129)]?'TERMUX':process['env'][_0x3471ce(0x137)]?_0x3471ce(0x146):process[_0x3471ce(0x12b)]['KOYEB_APP_ID']?_0x3471ce(0x13b):process[_0x3471ce(0x12b)][_0x3471ce(0x136)]?_0x3471ce(0x128):process['env']['RENDER']?_0x3471ce(0x13d):process[_0x3471ce(0x12b)]['RAILWAY_SERVICE_NAME']?_0x3471ce(0x132):process[_0x3471ce(0x12b)][_0x3471ce(0x143)]?_0x3471ce(0x143):process[_0x3471ce(0x12b)][_0x3471ce(0x141)]?_0x3471ce(0x14b):process['env'][_0x3471ce(0x140)]?_0x3471ce(0x12f):process[_0x3471ce(0x12b)][_0x3471ce(0x133)]?_0x3471ce(0x133):process[_0x3471ce(0x12b)]['FLY_IO']?_0x3471ce(0x13e):process['env'][_0x3471ce(0x142)]?_0x3471ce(0x127):process[_0x3471ce(0x12b)][_0x3471ce(0x139)]?_0x3471ce(0x13a):_0x3471ce(0x134);
+
+// Platform detection
+let SERVER = process.env.PWD?.includes("userland") ? "LINUX"
+    : process.env.PITCHER_API_BASE_URL?.includes('codesandbox') ? 'CODESANDBOX'
+    : process.env.REPLIT_USER ? "REPLIT"
+    : process.env.AWS_REGION ? "AWS"
+    : process.env.TERMUX_VERSION ? 'TERMUX'
+    : process.env.DYNO ? 'HEROKU'
+    : process.env.KOYEB_APP_ID ? 'KOYEB'
+    : process.env.GITHUB_SERVER_URL ? 'GITHUB'
+    : process.env.RENDER ? 'RENDER'
+    : process.env.RAILWAY_SERVICE_NAME ? 'RAILWAY'
+    : process.env.VERCEL ? "VERCEL"
+    : process.env.DIGITALOCEAN_APP_NAME ? "DIGITALOCEAN"
+    : process.env.AZURE_HTTP_FUNCTIONS ? "AZURE"
+    : process.env.NETLIFY ? "NETLIFY"
+    : process.env.FLY_IO ? 'FLY_IO'
+    : process.env.CF_PAGES ? "CLOUDFLARE"
+    : process.env.SPACE_ID ? "HUGGINGFACE"
+    : 'VPS';
 
 Sparky({
     name: "menu",
     category: "misc",
     fromMe: isPublic,
-    desc: "List all available commands"
-}, async ({
-    client,
-    m,
-    args
-}) => {
+    desc: "Display interactive menu with categories"
+}, async ({ client, m, args }) => {
     try {
-        if (args) {
-            for (let i of plugins.commands) {
-                if (i.name.test(args)) {
-                    return m.reply(style(`*command : ${args.trim()}*\n*description : ${i.desc.toLowerCase()}*`));
+        // Add reaction
+        await m.react('🗂️');
+
+        // Get uptime
+        const uptime = await m.uptime();
+        
+        // Get memory usage
+        const memoryUsage = process.memoryUsage();
+        const ramUsed = Math.round(memoryUsage.heapUsed / 1024 / 1024);
+        const ramTotal = Math.round(memoryUsage.heapTotal / 1024 / 1024);
+
+        // Get user's pushname
+        const pushname = m.pushName || 'User';
+
+        // Get categories from commands
+        let categories = [];
+        commands.forEach((command) => {
+            if (!command.dontAddCommandList && command.category) {
+                const category = command.category.toLowerCase();
+                if (!categories.includes(category)) {
+                    categories.push(category);
                 }
             }
-            return m.reply(style("_oops command not found_"))
-        } else {
-            let [date,
-                time
-            ] = new Date().toLocaleString("en-IN", {
-                timeZone: "Asia/Kolkata"
-            }).split(",");
-            let menu = `╭━━━〔${config.BOT_INFO.split(";")[0].toLowerCase()}〕━━>
-┃╭━━━━━━━━━━━━━◉
-┃┃•  owner : ${config.BOT_INFO.split(";")[1].toLowerCase()}
-┃┃•  mode : ${config.WORK_TYPE.toLowerCase()}
-┃┃•  prefix : ${m.prefix}
-┃┃•  platform : ${SERVER}
-┃┃•  date : ${date}
-┃┃•  time : ${time}
-┃┃•  uptime : ${await m.uptime()}
-┃┃•  plugins : ${commands.length}
-┃╰━━━━━━━━━━━━━◉
-╰━━━━━━━━━━━━━>\n ${readMore}\n\n`;
+        });
+        categories.sort();
 
-            let cmnd = [];
-            let Sparky;
-            let type = [];
+        // Build category rows for interactive menu
+        const categoryRows = categories.map((cat) => {
+            const categoryNames = {
+                'downloader': { emoji: '📥', title: 'Download Menu', desc: 'Media download commands' },
+                'converters': { emoji: '🔄', title: 'Converter Menu', desc: 'Media conversion commands' },
+                'misc': { emoji: '🛠️', title: 'Miscellaneous Menu', desc: 'Utility and tool commands' },
+                'group': { emoji: '👥', title: 'Group Menu', desc: 'Group management commands' },
+                'sudo': { emoji: '👑', title: 'Owner Menu', desc: 'Bot owner commands' },
+                'manage': { emoji: '⚙️', title: 'Management Menu', desc: 'Bot management commands' }
+            };
 
-            // Sorting commands based on category
-            commands.map((command, num) => {
-                if (command.name) {
-                    let SparkyName = command.name;
-                    Sparky = SparkyName.source.split('\\s*')[1].toString().match(/(\W*)([A-Za-züşiğ öç1234567890]*)/)[2];
-                }
-                if (command.dontAddCommandList || Sparky === undefined) return;
-                if (!command.dontAddCommandList && Sparky !== undefined) {
-                    let category;
-                    if (!command.category) {
-                        category = "misc";
-                    } else {
-                        category = command.category.toLowerCase();
+            const catInfo = categoryNames[cat] || { 
+                emoji: '📂', 
+                title: cat.charAt(0).toUpperCase() + cat.slice(1) + ' Menu',
+                desc: cat.charAt(0).toUpperCase() + cat.slice(1) + ' commands'
+            };
+
+            return {
+                title: `${catInfo.emoji} ${catInfo.title}`,
+                description: catInfo.desc,
+                id: `${m.prefix}listcmd ${cat}`
+            };
+        });
+
+        // Add "All Commands" option
+        categoryRows.unshift({
+            title: '📜 All Commands',
+            description: 'View complete command list',
+            id: `${m.prefix}allcmds`
+        });
+
+        // Send interactive button message
+        await client.sendMessage(m.jid, {
+            image: { url: config.BOT_INFO.split(";")[2] || "https://i.imgur.com/Q2UNwXR.jpg" },
+            caption: `╭━━━〔 *${config.BOT_INFO.split(";")[0]}* 〕━━━╮
+┃
+┃ *👤 User:* ${pushname}
+┃ *👑 Owner:* ${config.BOT_INFO.split(";")[1]}
+┃ *⏰ Uptime:* ${uptime}
+┃ *📦 RAM:* ${ramUsed}MB / ${ramTotal}MB
+┃ *🎐 Prefix:* ${m.prefix}
+┃ *💻 Platform:* ${SERVER}
+┃ *📂 Commands:* ${commands.length}
+┃
+╰━━━━━━━━━━━━━━━━━━╯
+
+*Select a category from the button below:*`,
+            buttons: [
+                {
+                    buttonId: 'menu_categories',
+                    buttonText: {
+                        displayText: '📂 Select Menu Category'
+                    },
+                    type: 4,
+                    nativeFlowInfo: {
+                        name: 'single_select',
+                        paramsJson: JSON.stringify({
+                            title: `${config.BOT_INFO.split(";")[0]} Menu`,
+                            sections: [
+                                {
+                                    title: '🔍 Choose a Category',
+                                    highlight_label: 'Main Menu',
+                                    rows: categoryRows
+                                }
+                            ]
+                        })
                     }
-                    cmnd.push({
-                        Sparky,
-                        category: category
-                    });
+                }
+            ],
+            headerType: 1
+        }, { quoted: m });
+
+    } catch (e) {
+        console.log('Menu error:', e);
+        // Fallback to text menu if interactive menu fails
+        await m.reply(`*${config.BOT_INFO.split(";")[0]} Menu*\n\nUse ${m.prefix}list to see all commands.`);
+    }
+});
+
+// Command to list commands by category
+Sparky({
+    name: "listcmd",
+    category: "misc",
+    fromMe: isPublic,
+    desc: "List commands by category"
+}, async ({ client, m, args }) => {
+    try {
+        if (!args) {
+            return m.reply('Please specify a category. Example: .listcmd downloader');
+        }
+
+        const category = args.toLowerCase().trim();
+        let cmdList = `╭━━━〔 *${category.toUpperCase()}* 〕━━━╮\n┃\n`;
+        
+        let found = false;
+        commands.forEach((command) => {
+            if (command.category && command.category.toLowerCase() === category && !command.dontAddCommandList) {
+                let cmdName = command.name;
+                if (cmdName) {
+                    let name = cmdName.source.split('\\s*')[1].toString().match(/(\W*)([A-Za-züşiğ öç1234567890|]*)/)[2];
+                    cmdList += `┃ • ${name}\n`;
+                    found = true;
+                }
+            }
+        });
+
+        if (!found) {
+            return m.reply(`No commands found in category: ${category}`);
+        }
+
+        cmdList += '┃\n╰━━━━━━━━━━━━━━━╯';
+        await m.reply(style(cmdList));
+    } catch (e) {
+        console.log('Listcmd error:', e);
+        await m.reply('Error listing commands');
+    }
+});
+
+// Command to list all commands
+Sparky({
+    name: "allcmds",
+    category: "misc",
+    fromMe: isPublic,
+    desc: "List all available commands"
+}, async ({ client, m, args }) => {
+    try {
+        let [date, time] = new Date().toLocaleString("en-IN", {
+            timeZone: "Asia/Kolkata"
+        }).split(",");
+
+        let menu = `╭━━━〔 ${config.BOT_INFO.split(";")[0]} 〕━━━╮
+┃
+┃ • Owner: ${config.BOT_INFO.split(";")[1]}
+┃ • Mode: ${config.WORK_TYPE}
+┃ • Prefix: ${m.prefix}
+┃ • Platform: ${SERVER}
+┃ • Date: ${date}
+┃ • Time: ${time}
+┃ • Uptime: ${await m.uptime()}
+┃ • Plugins: ${commands.length}
+┃
+╰━━━━━━━━━━━━━━━━╯\n\n`;
+
+        let cmnd = [];
+        let type = [];
+
+        // Sort commands by category
+        commands.forEach((command) => {
+            if (command.name && !command.dontAddCommandList) {
+                let SparkyName = command.name;
+                let Sparky = SparkyName.source.split('\\s*')[1].toString().match(/(\W*)([A-Za-züşiğ öç1234567890|]*)/)[2];
+                
+                if (Sparky) {
+                    let category = command.category ? command.category.toLowerCase() : "misc";
+                    cmnd.push({ Sparky, category });
                     if (!type.includes(category)) type.push(category);
                 }
-            });
+            }
+        });
 
-            cmnd.sort();
-            type.sort().forEach((cmmd) => {
-                menu += `╭━━━>
-┠┌─⭓『 *${cmmd.toUpperCase()}* 』\n`;
-                let comad = cmnd.filter(({ category }) => category == cmmd);
-                comad.sort();
-                comad.forEach(({ Sparky }) => {
-                    menu += `┃│• ${Sparky.trim()}\n`;
-                });
-                menu += `┃└─⭓\n`;
-                menu += `╰━━━━>\n`;
+        cmnd.sort();
+        type.sort().forEach((cat) => {
+            menu += `╭━━━━━━━━━━━━╮\n┃ *${cat.toUpperCase()}*\n┃\n`;
+            let catCmds = cmnd.filter(({ category }) => category === cat);
+            catCmds.forEach(({ Sparky }) => {
+                menu += `┃ • ${Sparky.trim()}\n`;
             });
-            let sperky = {
-                "key": {
-                    "participants": "0@s.whatsapp.net",
-                    "remoteJid": "status@broadcast",
-                    "fromMe": false,
-                    "id": "Hey!"
-                },
-                "message": {
-                    "contactMessage": {
-                        "displayName": `${config.BOT_INFO.split(";")[0]}`,
-                        "vcard": `BEGIN:VCARD\nVERSION:3.0\nN:Sy;Bot;;;\nFN:y\nitem1.TEL;waid=${m.sender.split('@')[0]}:${m.sender.split('@')[0]}\nitem1.X-ABLabel:Ponsel\nEND:VCARD`
-                    }
-                },
-                "participant": "0@s.whatsapp.net"
-            }
-            switch (config.MENU_TYPE.toLowerCase()) {
-                case 'big': {
-                    return await client.sendMessage(m.jid, {
-                        text: style(menu),
-                        contextInfo: {
-                            externalAdReply: {
-                                title: style(`Hey ${m.pushName}!`),
-                                body: style(`${config.BOT_INFO.split(";")[0]}`),
-                                sourceUrl: "https://sparky.biz.id",
-                                mediaType: 1,
-                                showAdAttribution: true,
-                                renderLargerThumbnail: true,
-                                thumbnailUrl: `${config.BOT_INFO.split(";")[2]}`
-                            }
-                        }
-                    }, { quoted: m });
-                    break;
-                }
-                case 'image': {
-                    return await m.sendFromUrl(config.BOT_INFO.split(";")[2], { caption: style(menu) }); //client.sendMessage(m.jid, { image: config.BOT_INFO.split(";")[2], caption: style(menu) }, { quoted: m });
-                    break;
-                }
-                case 'small': {
-                    return await client.sendMessage(m.jid, {
-                        text: style(menu),
-                        contextInfo: {
-                            externalAdReply: {
-                                title: style(`Hey ${m.pushName}!`),
-                                body: style(`${config.BOT_INFO.split(";")[0]}`),
-                                sourceUrl: "https://sparky.biz.id",
-                                mediaUrl: "https://sparky.biz.id",
-                                mediaType: 1,
-                                showAdAttribution: true,
-                                renderLargerThumbnail: false,
-                                thumbnailUrl: `${config.BOT_INFO.split(";")[2]}`
-                            }
-                        }
-                    }, { quoted: sperky });
-                    break;
-                }
-                case 'document': {
-                    return await client.sendMessage(m.jid, {
-                        document: {
-                            url: 'https://i.ibb.co/pnPNhMZ/2843ad26fd25.jpg'
-                        },
-                        caption: menu,
-                        mimetype: 'application/zip',
-                        fileName: style(config.BOT_INFO.split(";")[0]),
-                        fileLength: "99999999999",
-                        contextInfo: {
-                            externalAdReply: {
-                                title: style(`Hey ${m.pushName}!`),
-                                body: style(`${config.BOT_INFO.split(";")[0]}`),
-                                sourceUrl: "https://sparky.biz.id",
-                                mediaType: 1,
-                                showAdAttribution: true,
-                                renderLargerThumbnail: true,
-                                thumbnailUrl: `${config.BOT_INFO.split(";")[2]}`
-                            }
-                        }
-                    }, {
-                        quoted: sperky
-                    });
-                    break;
-                }
-                case 'text': {
-                    return await client.sendMessage(m.jid, {
-                        text: style(menu)
-                    }, {
-                        quoted: sperky
-                    });
-                    break;
-                }
-                case 'video': {
-                    return await client.sendMessage(
-                        m.jid,
-                        {
-                            video: { url: config.BOT_INFO.split(";")[2] },
-                            caption: style(menu),
-                            gifPlayback: true
-                        },
-                        { quoted: sperky }
-                    );
-                    break;
-                }
-                case 'payment': {
-                    return await client.relayMessage(m.jid, {
-                        requestPaymentMessage: {
-                            currencyCodeIso4217: 'INR',
-                            amount1000: '99000',
-                            requestFrom: m.sender.jid,
-                            noteMessage: {
-                                extendedTextMessage: {
-                                    text: style(menu)
-                                }
-                            },
-                            expiryTimestamp: '0',
-                            amount: {
-                                value: '99000',
-                                offset: 1000,
-                                currencyCode: 'INR'
-                            },
-                        }
-                    }, {});
-                    break;
-                }
-                default: {
-                    console.log("Unsupported menu format!", config.MENU_TYPE);
+            menu += `╰━━━━━━━━━━━━╯\n\n`;
+        });
+
+        await client.sendMessage(m.jid, {
+            text: style(menu),
+            contextInfo: {
+                externalAdReply: {
+                    title: `Hey ${m.pushName}!`,
+                    body: config.BOT_INFO.split(";")[0],
+                    sourceUrl: "https://github.com/A-S-W-I-N-S-P-A-R-K-Y/X--BOT--MD",
+                    mediaType: 1,
+                    showAdAttribution: true,
+                    renderLargerThumbnail: true,
+                    thumbnailUrl: config.BOT_INFO.split(";")[2]
                 }
             }
-        }
+        }, { quoted: m });
+
     } catch (e) {
-        console.log(e);
+        console.log('Allcmds error:', e);
+        await m.reply('Error displaying commands');
     }
 });
 
