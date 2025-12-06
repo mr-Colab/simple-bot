@@ -6,6 +6,11 @@ const gis = require("g-i-s");
 const config = require("../config.js");
 const lang = getString('download');
 
+// Constants for API URLs and headers
+const FALLBACK_API_URL = 'https://dev-priyanshi.onrender.com/api/alldl';
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+const API_TIMEOUT = 30000;
+
 
 Sparky(
     {
@@ -41,11 +46,11 @@ Sparky(
             }
             
             // Try alternative API
-            const apiUrl = `https://dev-priyanshi.onrender.com/api/alldl?url=${encodeURIComponent(args)}`;
-            const response = await axios.get(apiUrl, {
-                timeout: 30000,
+            const fallbackApiUrl = `${FALLBACK_API_URL}?url=${encodeURIComponent(args)}`;
+            const response = await axios.get(fallbackApiUrl, {
+                timeout: API_TIMEOUT,
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    'User-Agent': USER_AGENT
                 }
             });
             
@@ -230,11 +235,11 @@ async ({
         }
         
         // Try alternative API
-        const apiUrl = `https://dev-priyanshi.onrender.com/api/alldl?url=${encodeURIComponent(match)}`;
-        const response = await axios.get(apiUrl, {
-            timeout: 30000,
+        const fallbackApiUrl = `${FALLBACK_API_URL}?url=${encodeURIComponent(match)}`;
+        const response = await axios.get(fallbackApiUrl, {
+            timeout: API_TIMEOUT,
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                'User-Agent': USER_AGENT
             }
         });
         
@@ -283,8 +288,8 @@ async ({
         
         // Try primary API
         try {
-            const apiUrl = `https://delirius-apiofc.vercel.app/download/tiktok?url=${encodeURIComponent(match)}`;
-            const response = await axios.get(apiUrl, { timeout: 30000 });
+            const primaryApiUrl = `https://delirius-apiofc.vercel.app/download/tiktok?url=${encodeURIComponent(match)}`;
+            const response = await axios.get(primaryApiUrl, { timeout: API_TIMEOUT });
             
             if (response.data?.status && response.data?.data) {
                 const { title, author, meta } = response.data.data;
@@ -305,11 +310,11 @@ async ({
         }
         
         // Try alternative API
-        const apiUrl = `https://dev-priyanshi.onrender.com/api/alldl?url=${encodeURIComponent(match)}`;
-        const response = await axios.get(apiUrl, {
-            timeout: 30000,
+        const fallbackApiUrl = `${FALLBACK_API_URL}?url=${encodeURIComponent(match)}`;
+        const response = await axios.get(fallbackApiUrl, {
+            timeout: API_TIMEOUT,
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                'User-Agent': USER_AGENT
             }
         });
         
