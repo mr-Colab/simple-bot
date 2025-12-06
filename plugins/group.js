@@ -1,7 +1,10 @@
 const {delay} = require('baileys');
-const {Sparky, isPublic} = require('../lib');
+const {Sparky, isPublic, setData, getData} = require('../lib');
 const {getString} = require('./pluginsCore');
 const lang = getString('group');
+
+// Store antilink enabled groups in memory (will also use database)
+const antilinkGroups = new Set();
 
 
 Sparky({
@@ -405,5 +408,151 @@ Sparky({
 	return await m.sendMsg(m.jid, lang.GPP_SUCCESS);
 	} catch {
 	return await m.reply(lang.GPP_FAILED);
+	}
+});
+
+
+// ==================== KICKALL COMMAND ====================
+Sparky({
+	name: "kickall",
+	fromMe: true,
+	desc: "Remove all non-admin members from group in batches",
+	category: "group",
+}, async ({
+	client,
+	m,
+	args
+}) => {
+	if (!m.isGroup) return await m.reply('_This command can only be used in groups_');
+	
+	try {
+		const groupMetadata = await client.groupMetadata(m.jid);
+		const participants = groupMetadata.participants;
+		
+		// Get admins list
+		const admins = participants
+			.filter(p => p.admin === 'admin' || p.admin === 'superadmin')
+			.map(p => p.id);
+		
+		// Get bot's JID
+		const botJid = client.user.id.replace(/:[0-9]+/, '') + '@s.whatsapp.net';
+		
+		// Get non-admin members to kick (exclude admins and bot)
+		const membersToKick = participants
+			.filter(p => !admins.includes(p.id) && p.id !== botJid)
+			.map(p => p.id);
+		
+		if (membersToKick.length === 0) {
+			return await m.reply('_No members to kick (only admins in group)_');
+		}
+		
+		await m.reply(`_Kicking ${membersToKick.length} members in batches..._`);
+		
+		// Kick in batches of 5 with 900ms delay
+		const batchSize = 5;
+		let kickedCount = 0;
+		
+		for (let i = 0; i < membersToKick.length; i += batchSize) {
+			const batch = membersToKick.slice(i, i + batchSize);
+			
+			try {
+				await client.groupParticipantsUpdate(m.jid, batch, 'remove');
+				kickedCount += batch.length;
+				console.log(`Kicked batch: ${kickedCount}/${membersToKick.length}`);
+			} catch (err) {
+				console.error('Error kicking batch:', err.message);
+			}
+			
+			// Delay between batches
+			if (i + batchSize < membersToKick.length) {
+				await delay(900);
+			}
+		}
+		
+		return await m.reply(`_Successfully kicked ${kickedCount}/${membersToKick.length} members_`);
+	} catch (error) {
+		console.error('kickall error:', error);
+		return await m.reply('_Failed to kick members: ' + error.message + '_');
+	}
+});
+
+
+// ==================== ANTILINK COMMAND ====================
+Sparky({
+	name: "antilink",
+	fromMe: true,
+	desc: "Enable/disable antilink in group (on/off)",
+	category: "group",
+}, async ({
+	client,
+	m,
+	args
+}) => {
+	if (!m.isGroup) return await m.reply('_This command can only be used in groups_');
+	
+	if (!args) {
+		const isEnabled = antilinkGroups.has(m.jid);
+		return await m.reply(`_Antilink is currently ${isEnabled ? 'enabled ✅' : 'disabled ❌'}_\n_Use: .antilink on/off_`);
+	}
+	
+	const action = args.toLowerCase().trim();
+	
+	if (action === 'on' || action === 'enable') {
+		antilinkGroups.add(m.jid);
+		await setData(m.jid, 'true', 'active', 'antilink');
+		return await m.reply('_Antilink enabled ✅_\n_Links will be automatically deleted_');
+	} else if (action === 'off' || action === 'disable') {
+		antilinkGroups.delete(m.jid);
+		await setData(m.jid, 'false', 'inactive', 'antilink');
+		return await m.reply('_Antilink disabled ❌_');
+	} else {
+		return await m.reply('_Invalid option. Use: .antilink on/off_');
+	}
+});
+
+
+// ==================== ANTILINK MESSAGE HANDLER ====================
+Sparky({
+	on: "text",
+	fromMe: false,
+}, async ({
+	client,
+	m,
+	args
+}) => {
+	try {
+		// Only work in groups
+		if (!m.isGroup) return;
+		
+		// Check if antilink is enabled for this group
+		if (!antilinkGroups.has(m.jid)) {
+			// Check database
+			const data = await getData(m.jid);
+			if (!data?.antilink || data.antilink.message !== 'true') return;
+			// Add to memory cache
+			antilinkGroups.add(m.jid);
+		}
+		
+		// Check if sender is admin (admins can send links)
+		const isAdmin = await m.isAdmin(m.sender);
+		if (isAdmin) return;
+		
+		// Check if message contains links
+		const linkRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(chat\.whatsapp\.com\/[^\s]+)|(wa\.me\/[^\s]+)/gi;
+		const messageText = m.body || m.text || '';
+		
+		if (linkRegex.test(messageText)) {
+			// Delete the message silently
+			try {
+				await client.sendMessage(m.jid, {
+					delete: m.key
+				});
+				console.log(`Antilink: Deleted message with link from ${m.sender}`);
+			} catch (err) {
+				console.error('Failed to delete antilink message:', err.message);
+			}
+		}
+	} catch (error) {
+		console.error('Antilink handler error:', error);
 	}
 });

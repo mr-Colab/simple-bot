@@ -3,6 +3,14 @@ const {getString, appendMp3Data, convertToMp3, addExifToWebP, getBuffer, getJson
 const googleTTS = require('google-tts-api');
 const config = require('../config.js');
 const lang = getString('converters');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegStatic = require('ffmpeg-static');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+// Set ffmpeg path
+ffmpeg.setFfmpegPath(ffmpegStatic);
 
 Sparky({
     name: "url",
@@ -231,3 +239,143 @@ Sparky(
 	
 			}
 		});
+
+Sparky({
+    name: "tovn",
+    fromMe: isPublic,
+    desc: "Convert audio/video to voice note",
+    category: "converters",
+}, async ({ client, m, args }) => {
+    try {
+        if (!m.quoted) {
+            return m.reply('_Reply to an audio or video message_');
+        }
+        
+        // mtype is an array, get first element and convert to string
+        const quotedType = Array.isArray(m.quoted.mtype) ? m.quoted.mtype[0] : String(m.quoted.mtype || '');
+        
+        console.log('tovn - quotedType:', quotedType);
+        
+        // Check if it's audio or video
+        if (!quotedType.includes('audio') && !quotedType.includes('video') && !quotedType.includes('Audio') && !quotedType.includes('Video')) {
+            return m.reply('_Please reply to an audio or video message. Detected: ' + quotedType + '_');
+        }
+        
+        await m.react('🎤');
+        
+        // Download the media
+        const mediaBuffer = await m.quoted.download();
+        
+        // Create temp files
+        const tempDir = os.tmpdir();
+        const inputFile = path.join(tempDir, `input_${Date.now()}.${quotedType.includes('video') ? 'mp4' : 'mp3'}`);
+        const outputFile = path.join(tempDir, `output_${Date.now()}.ogg`);
+        
+        // Write input file
+        fs.writeFileSync(inputFile, mediaBuffer);
+        
+        // Convert to opus ogg using ffmpeg
+        await new Promise((resolve, reject) => {
+            ffmpeg(inputFile)
+                .toFormat('ogg')
+                .audioCodec('libopus')
+                .audioChannels(1)
+                .audioFrequency(48000)
+                .on('end', resolve)
+                .on('error', reject)
+                .save(outputFile);
+        });
+        
+        // Read converted file
+        const audioBuffer = fs.readFileSync(outputFile);
+        
+        // Cleanup temp files
+        try {
+            fs.unlinkSync(inputFile);
+            fs.unlinkSync(outputFile);
+        } catch (e) {}
+        
+        // Send as voice note (ptt = push to talk)
+        await client.sendMessage(m.jid, {
+            audio: audioBuffer,
+            mimetype: 'audio/ogg; codecs=opus',
+            ptt: true
+        }, {
+            quoted: m
+        });
+        
+        await m.react('✅');
+    } catch (error) {
+        console.error('tovn error:', error);
+        await m.react('❌');
+        m.reply('_Failed to convert to voice note: ' + error.message + '_');
+    }
+});
+
+Sparky({
+    name: "toaudio",
+    fromMe: isPublic,
+    desc: "Convert video to audio",
+    category: "converters",
+}, async ({ client, m, args }) => {
+    try {
+        if (!m.quoted) {
+            return m.reply('_Reply to a video message_');
+        }
+        
+        // mtype is an array, get first element and convert to string
+        const quotedType = Array.isArray(m.quoted.mtype) ? m.quoted.mtype[0] : String(m.quoted.mtype || '');
+        
+        if (!quotedType.includes('video') && !quotedType.includes('Video')) {
+            return m.reply('_Please reply to a video message. Detected: ' + quotedType + '_');
+        }
+        
+        await m.react('🎵');
+        
+        // Download the video
+        const mediaBuffer = await m.quoted.download();
+        
+        // Create temp files
+        const tempDir = os.tmpdir();
+        const inputFile = path.join(tempDir, `input_${Date.now()}.mp4`);
+        const outputFile = path.join(tempDir, `output_${Date.now()}.mp3`);
+        
+        // Write input file
+        fs.writeFileSync(inputFile, mediaBuffer);
+        
+        // Convert to mp3 using ffmpeg
+        await new Promise((resolve, reject) => {
+            ffmpeg(inputFile)
+                .toFormat('mp3')
+                .audioCodec('libmp3lame')
+                .audioChannels(2)
+                .audioBitrate('128k')
+                .on('end', resolve)
+                .on('error', reject)
+                .save(outputFile);
+        });
+        
+        // Read converted file
+        const audioBuffer = fs.readFileSync(outputFile);
+        
+        // Cleanup temp files
+        try {
+            fs.unlinkSync(inputFile);
+            fs.unlinkSync(outputFile);
+        } catch (e) {}
+        
+        // Send as audio
+        await client.sendMessage(m.jid, {
+            audio: audioBuffer,
+            mimetype: 'audio/mpeg'
+        }, {
+            quoted: m
+        });
+        
+        await m.react('✅');
+    } catch (error) {
+        console.error('toaudio error:', error);
+        await m.react('❌');
+        m.reply('_Failed to convert to audio: ' + error.message + '_');
+    }
+});

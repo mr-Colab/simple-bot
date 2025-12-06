@@ -2,6 +2,97 @@ const {
 	Sparky,
 	isPublic
 } = require("../lib");
+const config = require("../config");
+const { downloadMediaMessage } = require("baileys");
+
+// ==================== SAVE STATUS COMMAND ====================
+Sparky({
+	name: "save",
+	fromMe: true,
+	category: "whatsapp",
+	desc: "Save a status by replying to it. The status will be sent to your bot number."
+}, async ({ m, client }) => {
+	try {
+		// Check if replying to a message
+		if (!m.quoted) {
+			return await m.reply("_Reply to a status to save it_");
+		}
+
+		// Get bot's own JID
+		const botJid = client.user.id.split(':')[0] + '@s.whatsapp.net';
+		
+		// Get the quoted message type
+		const quotedMsg = m.quoted;
+		const mtype = quotedMsg.mtype;
+		
+		// Download the media
+		let buffer;
+		try {
+			buffer = await quotedMsg.downloadM();
+		} catch (e) {
+			// Try alternative download method
+			buffer = await downloadMediaMessage(
+				{ key: quotedMsg.key, message: quotedMsg.message },
+				'buffer',
+				{},
+				{ 
+					logger: console,
+					reuploadRequest: client.updateMediaMessage 
+				}
+			);
+		}
+
+		if (!buffer) {
+			return await m.reply("_Failed to download status media_");
+		}
+
+		// Get sender info
+		const sender = quotedMsg.key?.participant || quotedMsg.key?.remoteJid || "Unknown";
+		const senderName = sender.split('@')[0];
+		const caption = quotedMsg.text || quotedMsg.caption || "";
+		const statusCaption = `📥 *Status Saved*\n\n👤 *From:* @${senderName}\n${caption ? `📝 *Caption:* ${caption}` : ""}`;
+
+		// Determine media type and send accordingly
+		if (mtype === 'imageMessage' || (Array.isArray(mtype) && mtype.includes('imageMessage'))) {
+			await client.sendMessage(botJid, {
+				image: buffer,
+				caption: statusCaption,
+				mentions: [sender]
+			});
+		} else if (mtype === 'videoMessage' || (Array.isArray(mtype) && mtype.includes('videoMessage'))) {
+			await client.sendMessage(botJid, {
+				video: buffer,
+				caption: statusCaption,
+				mentions: [sender]
+			});
+		} else if (mtype === 'audioMessage' || (Array.isArray(mtype) && mtype.includes('audioMessage'))) {
+			await client.sendMessage(botJid, {
+				audio: buffer,
+				mimetype: 'audio/mp4',
+				ptt: false
+			});
+			await client.sendMessage(botJid, {
+				text: statusCaption,
+				mentions: [sender]
+			});
+		} else {
+			// Try sending as document for other types
+			await client.sendMessage(botJid, {
+				document: buffer,
+				mimetype: 'application/octet-stream',
+				fileName: `status_${Date.now()}`,
+				caption: statusCaption,
+				mentions: [sender]
+			});
+		}
+
+		await m.reply("_✅ Status saved and sent to your chat_");
+
+	} catch (error) {
+		console.error("Save status error:", error);
+		await m.reply("_❌ Failed to save status: " + error.message + "_");
+	}
+});
 
 Sparky({
     name: "online",
