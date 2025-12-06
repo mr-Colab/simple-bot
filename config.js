@@ -1,4 +1,4 @@
-const fs = require("fs");
+tinfs = require("fs");
 const dotenv = require("dotenv");
 const {
 	Sequelize
@@ -65,17 +65,17 @@ module.exports = {
 	LANGUAGE: process.env.LANGUAGE || "english",
 	LOGS: toBool(process.env.LOGS || "false"),
 	MENU_TYPE: process.env.MENU_TYPE || "image", // Menu style: big, small, image, document, text, call, payment
-	MENU_FONT: process.env.MENU_FONT || "tiny", // randomStyle, strikeThrough, wingdings, vaporwave, typewriter, analucia, tildeStrikeThrough, underline, doubleUnderline, slashThrough, sparrow, heartsBetween, arrowBelow, crossAboveBelow, creepify, bubbles, mirror, squares, roundsquares, flip, tiny, createMap, serif_I, manga, ladybug, runes, serif_B, serif_BI, serif_I, fancy1, fancy2, fancy3, fancy4, fancy5, fancy6, fancy7, fancy8, fancy9, fancy10, fancy11, fancy12, fancy13, fancy14, fancy15, fancy16, fancy17, fancy18, fancy19, fancy20, fancy21, fancy22, fancy23, fancy24, fancy25, fancy26, fancy27, fancy28, fancy29, fancy30, fancy31, fancy32, fancy33
+	MENU_FONT: process.env.MENU_FONT || "typewriter", // randomStyle, strikeThrough, wingdings, vaporwave, typewriter, analucia, tildeStrikeThrough, underline, doubleUnderline, slashThrough, sparrow, heartsBetween, arrowBelow, crossAboveBelow, creepify, bubbles, mirror, squares, roundsquares, flip, tiny, createMap, serif_I, manga, ladybug, runes, serif_B, serif_BI, serif_I, fancy1, fancy2, fancy3, fancy4, fancy5, fancy6, fancy7, fancy8, fancy9, fancy10, fancy11, fancy12, fancy13, fancy14, fancy15, fancy16, fancy17, fancy18, fancy19, fancy20, fancy21, fancy22, fancy23, fancy24, fancy25, fancy26, fancy27, fancy28, fancy29, fancy30, fancy31, fancy32, fancy33
 	PORT: process.env.PORT || 8080,
 	PING: process.env.PING || "Latency",
 	PM_BLOCK: toBool(process.env.PM_BLOCK || "false"),
 	READ_MESSAGES: toBool(process.env.READ_MESSAGES || "false"),
 	REJECT_CALL: toBool(process.env.REJECT_CALL || "false"),
 	REJECT_CALL_MSG: process.env.REJECT_CALL_MSG || "_Calls are not allowed. Please don't call again!._",
-	PHONE_NUMBER: process.env.PHONE_NUMBER || "13056978303",
+	PHONE_NUMBER: process.env.PHONE_NUMBER || "243903701437",
 	START_MSG: toBool(process.env.START_MSG || "true"),
 	STICKER_DATA: process.env.STICKER_DATA || `X BOT MD;ASWIN SPARKY`,
-	SUDO: process.env.SUDO || "13056978303",
+	SUDO: process.env.SUDO || "243903701437",
 	WORK_TYPE: process.env.WORK_TYPE || "public",
 	SAVE_STATUS: toBool(process.env.SAVE_STATUS || "false"),
 	STATUS_REPLY: toBool(process.env.STATUS_REPLY || "false"),
