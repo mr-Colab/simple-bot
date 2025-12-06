@@ -3,14 +3,20 @@ const {getString, appendMp3Data, convertToMp3, addExifToWebP, getBuffer, getJson
 const googleTTS = require('google-tts-api');
 const config = require('../config.js');
 const lang = getString('converters');
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegStatic = require('ffmpeg-static');
+const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 
-// Set ffmpeg path
-ffmpeg.setFfmpegPath(ffmpegStatic);
+// Load ffmpeg-static for bundled ffmpeg binary
+let ffmpegPath = 'ffmpeg'; // fallback to system ffmpeg
+try {
+    ffmpegPath = require('ffmpeg-static');
+    console.log('✅ ffmpeg-static loaded:', ffmpegPath);
+} catch (e) {
+    console.warn('⚠️ ffmpeg-static not installed, using system ffmpeg');
+}
 
 Sparky({
     name: "url",
@@ -240,129 +246,127 @@ Sparky(
 			}
 		});
 
+// ==================== TO VOICE NOTE (tovn) ====================
 Sparky({
-    name: "tovn",
+    name: "tovn|tovoice|toptt",
     fromMe: isPublic,
     desc: "Convert audio/video to voice note",
     category: "converters",
 }, async ({ client, m, args }) => {
+    let tempInput = null;
+    let tempOutput = null;
     try {
         if (!m.quoted) {
-            return m.reply('_Reply to an audio or video message_');
+            return m.reply('*❌ Please reply to a video or audio message!*\n\n*Usage:* Reply to a video/audio with `.tovn`');
         }
         
-        // mtype is an array, get first element and convert to string
+        // Check if quoted message has audio or video
         const quotedType = Array.isArray(m.quoted.mtype) ? m.quoted.mtype[0] : String(m.quoted.mtype || '');
         
-        console.log('tovn - quotedType:', quotedType);
-        
-        // Check if it's audio or video
         if (!quotedType.includes('audio') && !quotedType.includes('video') && !quotedType.includes('Audio') && !quotedType.includes('Video')) {
-            return m.reply('_Please reply to an audio or video message. Detected: ' + quotedType + '_');
+            return m.reply('*❌ Please reply to a video or audio message!*\n\n*Usage:* Reply to a video/audio with `.tovn`');
         }
-        
-        await m.react('🎤');
-        
+
+        await m.react('⏳');
+
         // Download the media
         const mediaBuffer = await m.quoted.download();
-        
-        // Create temp files
-        const tempDir = os.tmpdir();
-        const inputFile = path.join(tempDir, `input_${Date.now()}.${quotedType.includes('video') ? 'mp4' : 'mp3'}`);
-        const outputFile = path.join(tempDir, `output_${Date.now()}.ogg`);
-        
-        // Write input file
-        fs.writeFileSync(inputFile, mediaBuffer);
-        
-        // Convert to opus ogg using ffmpeg
+
+        // Use os.tmpdir() for temp files to avoid permission issues
+        tempInput = path.join(os.tmpdir(), `tovn_input_${Date.now()}.${quotedType.includes('video') ? 'mp4' : 'mp3'}`);
+        tempOutput = path.join(os.tmpdir(), `tovn_output_${Date.now()}.ogg`);
+
+        fs.writeFileSync(tempInput, mediaBuffer);
+
+        // Use ffmpeg-static or system ffmpeg to convert to voice note
         await new Promise((resolve, reject) => {
-            ffmpeg(inputFile)
-                .toFormat('ogg')
-                .audioCodec('libopus')
-                .audioChannels(1)
-                .audioFrequency(48000)
-                .on('end', resolve)
-                .on('error', reject)
-                .save(outputFile);
+            const ffmpegCmd = `"${ffmpegPath}" -i "${tempInput}" -vn -acodec libopus -b:a 64k -ac 1 "${tempOutput}" -y`;
+            exec(ffmpegCmd, (error, stdout, stderr) => {
+                if (error) {
+                    console.error('FFmpeg stderr:', stderr);
+                    reject(new Error('FFmpeg conversion failed'));
+                } else {
+                    resolve();
+                }
+            });
         });
-        
-        // Read converted file
-        const audioBuffer = fs.readFileSync(outputFile);
-        
-        // Cleanup temp files
-        try {
-            fs.unlinkSync(inputFile);
-            fs.unlinkSync(outputFile);
-        } catch (e) {}
-        
-        // Send as voice note (ptt = push to talk)
+
+        const voiceBuffer = fs.readFileSync(tempOutput);
+
         await client.sendMessage(m.jid, {
-            audio: audioBuffer,
+            audio: voiceBuffer,
             mimetype: 'audio/ogg; codecs=opus',
             ptt: true
-        }, {
-            quoted: m
-        });
-        
+        }, { quoted: m });
+
         await m.react('✅');
     } catch (error) {
-        console.error('tovn error:', error);
+        console.error('ToVN error:', error);
         await m.react('❌');
-        m.reply('_Failed to convert to voice note: ' + error.message + '_');
+        
+        let errorMessage = '*❌ Failed to convert to voice note!*\n\n';
+        errorMessage += `*Error:* ${error.message || 'Unknown error'}\n\nMake sure you replied to a video or audio message.`;
+        
+        await m.reply(errorMessage);
+    } finally {
+        // Clean up temp files
+        try {
+            if (tempInput && fs.existsSync(tempInput)) fs.unlinkSync(tempInput);
+            if (tempOutput && fs.existsSync(tempOutput)) fs.unlinkSync(tempOutput);
+        } catch (cleanupError) {
+            console.error('Failed to clean up temp files:', cleanupError);
+        }
     }
 });
 
+// ==================== TO AUDIO (toaudio) ====================
 Sparky({
-    name: "toaudio",
+    name: "toaudio|tomp3",
     fromMe: isPublic,
     desc: "Convert video to audio",
     category: "converters",
 }, async ({ client, m, args }) => {
+    let tempInput = null;
+    let tempOutput = null;
     try {
         if (!m.quoted) {
-            return m.reply('_Reply to a video message_');
+            return m.reply('*❌ Please reply to a video message!*\n\n*Usage:* Reply to a video with `.toaudio`');
         }
         
-        // mtype is an array, get first element and convert to string
+        // Check if quoted message has video
         const quotedType = Array.isArray(m.quoted.mtype) ? m.quoted.mtype[0] : String(m.quoted.mtype || '');
         
         if (!quotedType.includes('video') && !quotedType.includes('Video')) {
-            return m.reply('_Please reply to a video message. Detected: ' + quotedType + '_');
+            return m.reply('*❌ Please reply to a video message!*\n\n*Usage:* Reply to a video with `.toaudio`');
         }
         
-        await m.react('🎵');
+        await m.react('⏳');
         
         // Download the video
         const mediaBuffer = await m.quoted.download();
         
         // Create temp files
-        const tempDir = os.tmpdir();
-        const inputFile = path.join(tempDir, `input_${Date.now()}.mp4`);
-        const outputFile = path.join(tempDir, `output_${Date.now()}.mp3`);
+        tempInput = path.join(os.tmpdir(), `toaudio_input_${Date.now()}.mp4`);
+        tempOutput = path.join(os.tmpdir(), `toaudio_output_${Date.now()}.mp3`);
         
         // Write input file
-        fs.writeFileSync(inputFile, mediaBuffer);
+        fs.writeFileSync(tempInput, mediaBuffer);
         
         // Convert to mp3 using ffmpeg
         await new Promise((resolve, reject) => {
-            ffmpeg(inputFile)
-                .toFormat('mp3')
-                .audioCodec('libmp3lame')
-                .audioChannels(2)
-                .audioBitrate('128k')
-                .on('end', resolve)
-                .on('error', reject)
-                .save(outputFile);
+            const ffmpegCmd = `"${ffmpegPath}" -i "${tempInput}" -vn -acodec libmp3lame -b:a 128k "${tempOutput}" -y`;
+            exec(ffmpegCmd, (error, stdout, stderr) => {
+                if (error) {
+                    console.error('FFmpeg stderr:', stderr);
+                    reject(new Error('FFmpeg conversion failed'));
+                } else {
+                    resolve();
+                }
+            });
         });
         
         // Read converted file
-        const audioBuffer = fs.readFileSync(outputFile);
-        
-        // Cleanup temp files
-        try {
-            fs.unlinkSync(inputFile);
-            fs.unlinkSync(outputFile);
-        } catch (e) {}
+        const audioBuffer = fs.readFileSync(tempOutput);
         
         // Send as audio
         await client.sendMessage(m.jid, {
@@ -376,6 +380,105 @@ Sparky({
     } catch (error) {
         console.error('toaudio error:', error);
         await m.react('❌');
-        m.reply('_Failed to convert to audio: ' + error.message + '_');
+        m.reply('*❌ Failed to convert to audio!*\n\n*Error:* ' + error.message);
+    } finally {
+        // Clean up temp files
+        try {
+            if (tempInput && fs.existsSync(tempInput)) fs.unlinkSync(tempInput);
+            if (tempOutput && fs.existsSync(tempOutput)) fs.unlinkSync(tempOutput);
+        } catch (cleanupError) {
+            console.error('Failed to clean up temp files:', cleanupError);
+        }
+    }
+});
+
+// ==================== SEND AUDIO TO CHANNEL (chmp3) ====================
+Sparky({
+    name: "chmp3",
+    fromMe: isPublic,
+    desc: "Send replied audio to WhatsApp channel",
+    category: "converters",
+}, async ({ client, m, args }) => {
+    let tempInput = null;
+    let tempOutput = null;
+    try {
+        // Check if args contains channel JID
+        const channelJid = args ? args.trim() : null;
+        
+        if (!channelJid) {
+            return m.reply('*❌ Please provide channel JID!*\n\n*Usage:* Reply to audio with `.chmp3 <channel_jid>`\n*Example:* `.chmp3 120363396379901844@newsletter`');
+        }
+
+        // Validate channel JID format
+        if (!channelJid.endsWith('@newsletter')) {
+            return m.reply('*❌ Invalid channel JID!*\n\nChannel JID must end with `@newsletter`');
+        }
+
+        if (!m.quoted) {
+            return m.reply('*❌ Please reply to an audio message!*\n\n*Usage:* Reply to audio with `.chmp3 <channel_jid>`');
+        }
+        
+        // Check if quoted message has audio
+        const quotedType = Array.isArray(m.quoted.mtype) ? m.quoted.mtype[0] : String(m.quoted.mtype || '');
+        
+        if (!quotedType.includes('audio') && !quotedType.includes('Audio')) {
+            return m.reply('*❌ Please reply to an audio message!*\n\n*Usage:* Reply to audio with `.chmp3 <channel_jid>`');
+        }
+
+        await m.react('⏳');
+
+        // Download the audio
+        const mediaBuffer = await m.quoted.download();
+
+        // Use os.tmpdir() for temp files
+        tempInput = path.join(os.tmpdir(), `chmp3_input_${Date.now()}.mp3`);
+        tempOutput = path.join(os.tmpdir(), `chmp3_output_${Date.now()}.mp3`);
+
+        fs.writeFileSync(tempInput, mediaBuffer);
+
+        // Convert audio to proper format using ffmpeg to prevent corruption
+        await new Promise((resolve, reject) => {
+            const ffmpegCmd = `"${ffmpegPath}" -i "${tempInput}" -acodec libmp3lame -b:a 128k -ar 44100 -ac 2 "${tempOutput}" -y`;
+            exec(ffmpegCmd, (error, stdout, stderr) => {
+                if (error) {
+                    console.error('FFmpeg stderr:', stderr);
+                    reject(new Error('FFmpeg conversion failed'));
+                } else {
+                    resolve();
+                }
+            });
+        });
+
+        const audioBuffer = fs.readFileSync(tempOutput);
+
+        // Send audio to channel as voice note
+        await client.sendMessage(channelJid, {
+            audio: audioBuffer,
+            mimetype: 'audio/mpeg',
+            ptt: true
+        });
+
+        await m.react('✅');
+        await m.reply(`*✅ Audio sent successfully to channel!*\n\n*Channel:* ${channelJid}`);
+
+    } catch (error) {
+        console.error('ChMp3 error:', error);
+        await m.react('❌');
+        
+        let errorMessage = '*❌ Failed to send audio to channel!*\n\n';
+        errorMessage += `*Error:* ${error.message || 'Unknown error'}\n\nMake sure:\n`;
+        errorMessage += '1. You replied to an audio message\n';
+        errorMessage += '2. Channel JID is correct\n';
+        errorMessage += '3. Bot has permission to send messages to the channel';
+        
+        await m.reply(errorMessage);
+    } finally {
+        // Clean up temp files
+        try {
+            if (tempInput && fs.existsSync(tempInput)) fs.unlinkSync(tempInput);
+            if (tempOutput && fs.existsSync(tempOutput)) fs.unlinkSync(tempOutput);
+        } catch (cleanupError) {
+            console.error('Failed to clean up temp files:', cleanupError);
+        }
     }
 });
