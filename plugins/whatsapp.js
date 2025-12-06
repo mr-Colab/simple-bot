@@ -238,3 +238,66 @@ Sparky({
         });
     } catch (e) {}
 });
+// ==================== NEWSLETTER/CHANNEL INFO COMMAND ====================
+Sparky({
+    name: "newsletter|channelid|channelinfo",
+    fromMe: isPublic,
+    category: "whatsapp",
+    desc: "Get WhatsApp Channel information from link"
+}, async ({ client, m, args }) => {
+    try {
+        await m.react('⏳');
+
+        const url = args || m.quoted?.text;
+        
+        if (!url) {
+            return await m.reply('❎ *Please provide a WhatsApp Channel link.*\n\n*Example:* .newsletter https://whatsapp.com/channel/123456789');
+        }
+
+        // Extract channel invite ID from URL
+        const match = url.match(/whatsapp\.com\/channel\/([\w-]+)/);
+        
+        if (!match) {
+            return await m.reply('⚠️ *Invalid channel link format.*\n\nMake sure it looks like:\nhttps://whatsapp.com/channel/xxxxxxxxx');
+        }
+
+        const inviteId = match[1];
+        let metadata;
+
+        try {
+            metadata = await client.newsletterMetadata("invite", inviteId);
+        } catch (e) {
+            console.error('Newsletter metadata error:', e);
+            return await m.reply('❌ Failed to fetch channel metadata. Make sure the link is correct and accessible.');
+        }
+
+        if (!metadata || !metadata.id) {
+            return await m.reply('❌ Channel not found or inaccessible.');
+        }
+
+        // Format channel information
+        const infoText = `\`📡 Channel Info\`\n\n` +
+            `🛠️ *ID:* ${metadata.id}\n` +
+            `📌 *Name:* ${metadata.name || 'N/A'}\n` +
+            `👥 *Followers:* ${metadata.subscribers?.toLocaleString() || 'N/A'}\n` +
+            `📅 *Created:* ${metadata.creation_time ? new Date(metadata.creation_time * 1000).toLocaleString() : 'Unknown'}\n` +
+            `📝 *Description:* ${metadata.description || 'No description'}`;
+
+        // Send with preview image if available
+        if (metadata.preview) {
+            await client.sendMessage(m.jid, {
+                image: { url: `https://pps.whatsapp.net${metadata.preview}` },
+                caption: infoText
+            }, { quoted: m });
+        } else {
+            await m.reply(infoText);
+        }
+
+        await m.react('✅');
+
+    } catch (error) {
+        console.error('Newsletter command error:', error);
+        await m.react('❌');
+        await m.reply('⚠️ An unexpected error occurred while fetching channel info.');
+    }
+});

@@ -451,11 +451,11 @@ Sparky({
 
         const audioBuffer = fs.readFileSync(tempOutput);
 
-        // Send audio to channel
+        // Send audio to channel as voice note
         await client.sendMessage(channelJid, {
             audio: audioBuffer,
             mimetype: 'audio/mpeg',
-            ptt: false
+            ptt: true
         });
 
         await m.react('✅');
