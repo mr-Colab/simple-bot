@@ -25,6 +25,11 @@
   } = require("./lib");
   const config = require("./config");
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  
+  // Socket initialization delay to ensure WebSocket connection is established
+  // before requesting pairing code (required by Baileys)
+  const SOCKET_INIT_DELAY = 2000;
+  
   const express = require("express");
   const http = require("http");
   const app = express();
@@ -123,12 +128,19 @@
       cachedGroupMetadata: async (jid) => groupCache.get(jid)
     });
 
-    // Wait a bit for socket to initialize before requesting pairing code
-    await delay(2000);
+    // Wait for socket to initialize before requesting pairing code
+    await delay(SOCKET_INIT_DELAY);
 
     // Request pairing code if not registered and phone number is provided
     if (!sock.authState.creds.registered && config.PHONE_NUMBER) {
       const phoneNumber = config.PHONE_NUMBER.replace(/[^0-9]/g, ''); // Remove non-numeric characters
+      
+      // Validate phone number format (must have at least 10 digits with country code)
+      if (phoneNumber.length < 10) {
+        console.error("❌ Invalid phone number format. Please provide phone number with country code (e.g., 919876543210)");
+        throw new Error("Invalid PHONE_NUMBER format");
+      }
+      
       console.log("Requesting pairing code for:", phoneNumber);
       const code = await sock.requestPairingCode(phoneNumber);
       console.log("✅ Pairing Code:", code);
