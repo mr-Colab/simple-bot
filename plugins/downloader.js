@@ -6,77 +6,67 @@ const gis = require("g-i-s");
 const config = require("../config.js");
 const lang = getString('download');
 
-// Constants for API URLs and headers
-const FALLBACK_API_URL = 'https://dev-priyanshi.onrender.com/api/alldl';
-const TIKTOK_PRIMARY_API = 'https://delirius-apiofc.vercel.app/download/tiktok';
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
-const API_TIMEOUT = 30000;
-
-
-Sparky(
-    {
-        name: "insta",
-        fromMe: isPublic,
-        desc: "Instagram media downloader - download images and videos from Instagram",
-        category: "downloader",
-    },
-    async ({
-        m, client, args
-    }) => {
-        args = args || m.quoted?.text;
-        if (!args) return await m.reply(lang.NEED_URL);
+// ==================== INSTAGRAM DOWNLOAD ====================
+Sparky({
+    name: "ig|insta|instagram",
+    fromMe: isPublic,
+    desc: "Instagram media downloader with quality options",
+    category: "downloader",
+}, async ({ m, client, args }) => {
+    try {
+        const url = args || m.quoted?.text;
         
+        if (!url) {
+            return await m.reply('📸 *Instagram Downloader*\n\nPlease provide an Instagram URL.\nExample: .ig https://instagram.com/reel/ABC123/');
+        }
+
         // Validate Instagram URL
-        if (!args.includes('instagram.com') && !args.includes('instagr.am')) {
-            return await m.reply('_Please provide a valid Instagram URL_');
+        if (!url.includes('instagram.com') && !url.includes('instagr.am')) {
+            return await m.reply('❌ *Invalid Instagram URL*\nPlease provide a valid Instagram URL.');
         }
-        
-        try {
-            await m.react('⬇️');
-            
-            // Try primary API
-            try {
-                let response = await getJson(config.API + "/api/downloader/igdl?url=" + args);
-                for (let i of response.data) {
-                    await m.sendMsg(m.jid, i.url, { quoted: m }, i.type)
-                }
-                await m.react('✅');
-                return;
-            } catch (primaryError) {
-                console.log('Primary Instagram API failed, trying alternative...');
+
+        await m.react('⏳');
+
+        const apiUrl = `https://dev-priyanshi.onrender.com/api/alldl?url=${encodeURIComponent(url)}`;
+        const response = await axios.get(apiUrl, {
+            timeout: 30000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
-            
-            // Try alternative API
-            const fallbackApiUrl = `${FALLBACK_API_URL}?url=${encodeURIComponent(args)}`;
-            const response = await axios.get(fallbackApiUrl, {
-                timeout: API_TIMEOUT,
-                headers: {
-                    'User-Agent': USER_AGENT
-                }
-            });
-            
-            if (response.data?.status && response.data.data) {
-                const videoData = response.data.data;
-                const videoUrl = videoData.high || videoData.low;
-                
-                if (videoUrl) {
-                    await m.sendFromUrl(videoUrl, {
-                        caption: videoData.title || 'Instagram Media'
-                    });
-                    await m.react('✅');
-                } else {
-                    throw new Error('No downloadable media found');
-                }
-            } else {
-                throw new Error('Invalid API response');
-            }
-        } catch (e) {
-            console.log(e);
-            await m.react('❌');
-            await m.reply('_Failed to download Instagram media. Please try again later._');
+        });
+
+        if (!response.data?.status || !response.data.data) {
+            throw new Error('Invalid API response');
         }
+
+        const videoData = response.data.data;
+        const videoUrl = videoData.high || videoData.low;
+
+        if (!videoUrl) {
+            throw new Error('No downloadable media found');
+        }
+
+        // Download and send
+        const videoResponse = await axios.get(videoUrl, {
+            responseType: 'arraybuffer',
+            timeout: 60000
+        });
+
+        const videoBuffer = Buffer.from(videoResponse.data, 'binary');
+        const caption = `📸 *${videoData.title || 'Instagram Media'}*\n🌐 *Source:* Instagram`;
+
+        await client.sendMessage(m.jid, {
+            video: videoBuffer,
+            caption: caption
+        }, { quoted: m });
+
+        await m.react('✅');
+    } catch (error) {
+        console.error('Instagram Command Error:', error);
+        await m.react('❌');
+        await m.reply(`❌ Error: ${error.message || 'Failed to process Instagram media'}`);
     }
-);
+});
 
 Sparky({
     name: "gpt",
@@ -205,139 +195,129 @@ async ({
     }
 });
 
+// ==================== FACEBOOK DOWNLOAD ====================
 Sparky({
-    name: "fb",
+    name: "fb|facebook|fbvideo",
     fromMe: isPublic,
     category: "downloader",
-    desc: "Download files from Facebook by providing a valid URL",
-},
-async ({
-    m, client, args
-}) => {
+    desc: "Facebook video downloader with quality options",
+}, async ({ m, client, args }) => {
     try {
-        let match = args || m.quoted?.text;
-        if (!match) return await m.reply(lang.NEED_URL);
+        const url = args || m.quoted?.text;
         
+        if (!url) {
+            return await m.reply('📥 *Facebook Video Downloader*\n\nPlease provide a Facebook video URL.\nExample: .fb https://facebook.com/share/v/16rHWGkeet/');
+        }
+
         // Validate Facebook URL
-        if (!match.includes('facebook.com') && !match.includes('fb.com') && !match.includes('fb.watch')) {
-            return await m.reply('_Please provide a valid Facebook URL_');
+        if (!url.includes('facebook.com') && !url.includes('fb.com') && !url.includes('fb.watch')) {
+            return await m.reply('❌ *Invalid Facebook URL*\nPlease provide a valid Facebook video URL.');
         }
-        
-        await m.react('⬇️');
-        
-        // Try primary API
-        try {
-            const data = await getJson(config.API + "/api/downloader/fbdl?url=" + match);
-            await m.sendFromUrl(data.data.high || data.data.low, { caption: data.data.title });
-            await m.react('✅');
-            return;
-        } catch (primaryError) {
-            console.log('Primary Facebook API failed, trying alternative...');
-        }
-        
-        // Try alternative API
-        const fallbackApiUrl = `${FALLBACK_API_URL}?url=${encodeURIComponent(match)}`;
-        const response = await axios.get(fallbackApiUrl, {
-            timeout: API_TIMEOUT,
+
+        await m.react('⏳');
+
+        const apiUrl = `https://dev-priyanshi.onrender.com/api/alldl?url=${encodeURIComponent(url)}`;
+        const response = await axios.get(apiUrl, {
+            timeout: 30000,
             headers: {
-                'User-Agent': USER_AGENT
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
         });
-        
-        if (response.data?.status && response.data.data) {
-            const videoData = response.data.data;
-            const videoUrl = videoData.high || videoData.low;
-            
-            if (videoUrl) {
-                await m.sendFromUrl(videoUrl, {
-                    caption: videoData.title || 'Facebook Video'
-                });
-                await m.react('✅');
-            } else {
-                throw new Error('No downloadable video found');
-            }
-        } else {
+
+        if (!response.data?.status || !response.data.data) {
             throw new Error('Invalid API response');
         }
+
+        const videoData = response.data.data;
+        const videoUrl = videoData.high || videoData.low;
+
+        if (!videoUrl) {
+            throw new Error('No downloadable video found');
+        }
+
+        // Download and send
+        const videoResponse = await axios.get(videoUrl, {
+            responseType: 'arraybuffer',
+            timeout: 60000
+        });
+
+        const videoBuffer = Buffer.from(videoResponse.data, 'binary');
+        const caption = `📥 *${videoData.title || 'Facebook Video'}*\n🌐 *Source:* Facebook`;
+
+        await client.sendMessage(m.jid, {
+            video: videoBuffer,
+            caption: caption
+        }, { quoted: m });
+
+        await m.react('✅');
     } catch (error) {
+        console.error('Facebook Command Error:', error);
         await m.react('❌');
-        console.error(error);
-        return m.reply('_Failed to download Facebook video. Please try again later._');
+        await m.reply(`❌ Error: ${error.message || 'Failed to process Facebook video'}`);
     }
 });
 
+// ==================== TIKTOK DOWNLOAD ====================
 Sparky({
     name: "tiktok|tt",
     fromMe: isPublic,
     category: "downloader",
-    desc: "Download videos from TikTok by providing a valid URL",
-},
-async ({
-    m, client, args
-}) => {
+    desc: "TikTok video downloader",
+}, async ({ m, client, args }) => {
     try {
-        let match = args || m.quoted?.text;
-        if (!match) return await m.reply(lang.NEED_URL);
+        const url = args || m.quoted?.text;
         
+        if (!url) {
+            return await m.reply('🎵 *TikTok Downloader*\n\nPlease provide a TikTok URL.\nExample: .tiktok https://tiktok.com/@user/video/123456789');
+        }
+
         // Validate TikTok URL
-        if (!match.includes('tiktok.com') && !match.includes('vt.tiktok.com') && !match.includes('vm.tiktok.com')) {
-            return await m.reply('_Please provide a valid TikTok URL_');
+        if (!url.includes('tiktok.com') && !url.includes('vt.tiktok.com') && !url.includes('vm.tiktok.com')) {
+            return await m.reply('❌ *Invalid TikTok URL*\nPlease provide a valid TikTok URL.');
         }
-        
-        await m.react('⬇️');
-        await m.reply('_Downloading TikTok video, please wait..._');
-        
-        // Try primary API
-        try {
-            const primaryApiUrl = `${TIKTOK_PRIMARY_API}?url=${encodeURIComponent(match)}`;
-            const response = await axios.get(primaryApiUrl, { timeout: API_TIMEOUT });
-            
-            if (response.data?.status && response.data?.data) {
-                const { title, author, meta } = response.data.data;
-                const video = meta?.media?.find(v => v.type === "video");
-                
-                if (video?.org) {
-                    const caption = `🎵 *TikTok Video*\n\n` +
-                                  `👤 *User:* ${author?.nickname || 'Unknown'} (@${author?.username || 'unknown'})\n` +
-                                  `📖 *Title:* ${title || 'TikTok Video'}`;
-                    
-                    await m.sendFromUrl(video.org, { caption });
-                    await m.react('✅');
-                    return;
-                }
-            }
-        } catch (primaryError) {
-            console.log('Primary TikTok API failed, trying alternative...');
-        }
-        
-        // Try alternative API
-        const fallbackApiUrl = `${FALLBACK_API_URL}?url=${encodeURIComponent(match)}`;
-        const response = await axios.get(fallbackApiUrl, {
-            timeout: API_TIMEOUT,
+
+        await m.react('⏳');
+
+        const apiUrl = `https://dev-priyanshi.onrender.com/api/alldl?url=${encodeURIComponent(url)}`;
+        const response = await axios.get(apiUrl, {
+            timeout: 30000,
             headers: {
-                'User-Agent': USER_AGENT
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
         });
-        
-        if (response.data?.status && response.data.data) {
-            const videoData = response.data.data;
-            const videoUrl = videoData.high || videoData.low;
-            
-            if (videoUrl) {
-                await m.sendFromUrl(videoUrl, {
-                    caption: videoData.title || 'TikTok Video'
-                });
-                await m.react('✅');
-            } else {
-                throw new Error('No downloadable video found');
-            }
-        } else {
+
+        if (!response.data?.status || !response.data.data) {
             throw new Error('Invalid API response');
         }
+
+        const videoData = response.data.data;
+        const videoUrl = videoData.play || videoData.high || videoData.low;
+
+        if (!videoUrl) {
+            throw new Error('No downloadable video found');
+        }
+
+        // Download and send
+        const videoResponse = await axios.get(videoUrl, {
+            responseType: 'arraybuffer',
+            timeout: 60000
+        });
+
+        const videoBuffer = Buffer.from(videoResponse.data, 'binary');
+        const caption = `🎵 *${videoData.title || 'TikTok Video'}*\n` +
+                       `👤 *Creator:* ${videoData.author || 'Unknown'}\n` +
+                       `🌐 *Source:* TikTok`;
+
+        await client.sendMessage(m.jid, {
+            video: videoBuffer,
+            caption: caption
+        }, { quoted: m });
+
+        await m.react('✅');
     } catch (error) {
+        console.error('TikTok Command Error:', error);
         await m.react('❌');
-        console.error(error);
-        return m.reply('_Failed to download TikTok video. Please try again later._');
+        await m.reply(`❌ Error: ${error.message || 'Failed to process TikTok video'}`);
     }
 });
 
