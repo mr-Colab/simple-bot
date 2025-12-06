@@ -38,11 +38,26 @@ Sparky({
     name: "menu",
     category: "misc",
     fromMe: isPublic,
-    desc: "Display interactive menu with categories"
+    desc: "Display menu - format depends on MENU_TYPE config"
 }, async ({ client, m, args }) => {
     try {
+        // Handle specific command info request
+        if (args) {
+            for (let i of plugins.commands) {
+                if (i.name.test(args)) {
+                    return m.reply(style(`*command : ${args.trim()}*\n*description : ${i.desc.toLowerCase()}*`));
+                }
+            }
+            return m.reply(style("_oops command not found_"));
+        }
+
         // Add reaction
         await m.react('🗂️');
+
+        // Get date and time
+        let [date, time] = new Date().toLocaleString("en-IN", {
+            timeZone: "Asia/Kolkata"
+        }).split(",");
 
         // Get uptime
         const uptime = await m.uptime();
@@ -55,53 +70,54 @@ Sparky({
         // Get user's pushname
         const pushname = m.pushName || 'User';
 
-        // Get categories from commands
-        let categories = [];
-        commands.forEach((command) => {
-            if (!command.dontAddCommandList && command.category) {
-                const category = command.category.toLowerCase();
-                if (!categories.includes(category)) {
-                    categories.push(category);
+        // Check menu type - if 'button' or 'interactive', show interactive menu
+        const menuType = config.MENU_TYPE ? config.MENU_TYPE.toLowerCase() : 'button';
+
+        if (menuType === 'button' || menuType === 'interactive') {
+            // Interactive button menu logic
+            let categories = [];
+            commands.forEach((command) => {
+                if (!command.dontAddCommandList && command.category) {
+                    const category = command.category.toLowerCase();
+                    if (!categories.includes(category)) {
+                        categories.push(category);
+                    }
                 }
-            }
-        });
-        categories.sort();
+            });
+            categories.sort();
 
-        // Build category rows for interactive menu
-        const categoryRows = categories.map((cat) => {
-            const categoryNames = {
-                'downloader': { emoji: '📥', title: 'Download Menu', desc: 'Media download commands' },
-                'converters': { emoji: '🔄', title: 'Converter Menu', desc: 'Media conversion commands' },
-                'misc': { emoji: '🛠️', title: 'Miscellaneous Menu', desc: 'Utility and tool commands' },
-                'group': { emoji: '👥', title: 'Group Menu', desc: 'Group management commands' },
-                'sudo': { emoji: '👑', title: 'Owner Menu', desc: 'Bot owner commands' },
-                'manage': { emoji: '⚙️', title: 'Management Menu', desc: 'Bot management commands' }
-            };
+            const categoryRows = categories.map((cat) => {
+                const categoryNames = {
+                    'downloader': { emoji: '📥', title: 'Download Menu', desc: 'Media download commands' },
+                    'converters': { emoji: '🔄', title: 'Converter Menu', desc: 'Media conversion commands' },
+                    'misc': { emoji: '🛠️', title: 'Miscellaneous Menu', desc: 'Utility and tool commands' },
+                    'group': { emoji: '👥', title: 'Group Menu', desc: 'Group management commands' },
+                    'sudo': { emoji: '👑', title: 'Owner Menu', desc: 'Bot owner commands' },
+                    'manage': { emoji: '⚙️', title: 'Management Menu', desc: 'Bot management commands' }
+                };
 
-            const catInfo = categoryNames[cat] || { 
-                emoji: '📂', 
-                title: cat.charAt(0).toUpperCase() + cat.slice(1) + ' Menu',
-                desc: cat.charAt(0).toUpperCase() + cat.slice(1) + ' commands'
-            };
+                const catInfo = categoryNames[cat] || { 
+                    emoji: '📂', 
+                    title: cat.charAt(0).toUpperCase() + cat.slice(1) + ' Menu',
+                    desc: cat.charAt(0).toUpperCase() + cat.slice(1) + ' commands'
+                };
 
-            return {
-                title: `${catInfo.emoji} ${catInfo.title}`,
-                description: catInfo.desc,
-                id: `${m.prefix}listcmd ${cat}`
-            };
-        });
+                return {
+                    title: `${catInfo.emoji} ${catInfo.title}`,
+                    description: catInfo.desc,
+                    id: `${m.prefix}listcmd ${cat}`
+                };
+            });
 
-        // Add "All Commands" option
-        categoryRows.unshift({
-            title: '📜 All Commands',
-            description: 'View complete command list',
-            id: `${m.prefix}allcmds`
-        });
+            categoryRows.unshift({
+                title: '📜 All Commands',
+                description: 'View complete command list',
+                id: `${m.prefix}allcmds`
+            });
 
-        // Send interactive button message
-        await client.sendMessage(m.jid, {
-            image: { url: config.BOT_INFO.split(";")[2] || "https://i.imgur.com/Q2UNwXR.jpg" },
-            caption: `╭━━━〔 *${config.BOT_INFO.split(";")[0]}* 〕━━━╮
+            return await client.sendMessage(m.jid, {
+                image: { url: config.BOT_INFO.split(";")[2] || "https://i.imgur.com/Q2UNwXR.jpg" },
+                caption: `╭━━━〔 *${config.BOT_INFO.split(";")[0]}* 〕━━━╮
 ┃
 ┃ *👤 User:* ${pushname}
 ┃ *👑 Owner:* ${config.BOT_INFO.split(";")[1]}
@@ -114,34 +130,214 @@ Sparky({
 ╰━━━━━━━━━━━━━━━━━━╯
 
 *Select a category from the button below:*`,
-            buttons: [
-                {
-                    buttonId: 'menu_categories',
-                    buttonText: {
-                        displayText: '📂 Select Menu Category'
-                    },
-                    type: 4,
-                    nativeFlowInfo: {
-                        name: 'single_select',
-                        paramsJson: JSON.stringify({
-                            title: `${config.BOT_INFO.split(";")[0]} Menu`,
-                            sections: [
-                                {
-                                    title: '🔍 Choose a Category',
-                                    highlight_label: 'Main Menu',
-                                    rows: categoryRows
-                                }
-                            ]
-                        })
+                buttons: [
+                    {
+                        buttonId: 'menu_categories',
+                        buttonText: {
+                            displayText: '📂 Select Menu Category'
+                        },
+                        type: 4,
+                        nativeFlowInfo: {
+                            name: 'single_select',
+                            paramsJson: JSON.stringify({
+                                title: `${config.BOT_INFO.split(";")[0]} Menu`,
+                                sections: [
+                                    {
+                                        title: '🔍 Choose a Category',
+                                        highlight_label: 'Main Menu',
+                                        rows: categoryRows
+                                    }
+                                ]
+                            })
+                        }
                     }
+                ],
+                headerType: 1
+            }, { quoted: m });
+        }
+
+        // For other menu types, build traditional text menu
+        let menu = `╭━━━〔${config.BOT_INFO.split(";")[0]}〕━━>
+┃╭━━━━━━━━━━━━━◉
+┃┃•  owner : ${config.BOT_INFO.split(";")[1]}
+┃┃•  mode : ${config.WORK_TYPE}
+┃┃•  prefix : ${m.prefix}
+┃┃•  platform : ${SERVER}
+┃┃•  date : ${date}
+┃┃•  time : ${time}
+┃┃•  uptime : ${uptime}
+┃┃•  plugins : ${commands.length}
+┃╰━━━━━━━━━━━━━◉
+╰━━━━━━━━━━━━━>\n${readMore}\n\n`;
+
+        let cmnd = [];
+        let Sparky;
+        let type = [];
+
+        // Sorting commands based on category
+        commands.map((command, num) => {
+            if (command.name) {
+                let SparkyName = command.name;
+                Sparky = SparkyName.source.split('\\s*')[1].toString().match(/(\W*)([A-Za-züşiğ öç1234567890]*)/)[2];
+            }
+            if (command.dontAddCommandList || Sparky === undefined) return;
+            if (!command.dontAddCommandList && Sparky !== undefined) {
+                let category;
+                if (!command.category) {
+                    category = "misc";
+                } else {
+                    category = command.category.toLowerCase();
                 }
-            ],
-            headerType: 1
-        }, { quoted: m });
+                cmnd.push({
+                    Sparky,
+                    category: category
+                });
+                if (!type.includes(category)) type.push(category);
+            }
+        });
+
+        cmnd.sort();
+        type.sort().forEach((cmmd) => {
+            menu += `╭━━━>
+┠┌─⭓『 *${cmmd.toUpperCase()}* 』\n`;
+            let comad = cmnd.filter(({ category }) => category == cmmd);
+            comad.sort();
+            comad.forEach(({ Sparky }) => {
+                menu += `┃│• ${Sparky.trim()}\n`;
+            });
+            menu += `┃└─⭓\n`;
+            menu += `╰━━━━>\n`;
+        });
+
+        let sperky = {
+            "key": {
+                "participants": "0@s.whatsapp.net",
+                "remoteJid": "status@broadcast",
+                "fromMe": false,
+                "id": "Hey!"
+            },
+            "message": {
+                "contactMessage": {
+                    "displayName": `${config.BOT_INFO.split(";")[0]}`,
+                    "vcard": `BEGIN:VCARD\nVERSION:3.0\nN:Sy;Bot;;;\nFN:y\nitem1.TEL;waid=${m.sender.split('@')[0]}:${m.sender.split('@')[0]}\nitem1.X-ABLabel:Ponsel\nEND:VCARD`
+                }
+            },
+            "participant": "0@s.whatsapp.net"
+        };
+
+        // Switch based on MENU_TYPE
+        switch (menuType) {
+            case 'big': {
+                return await client.sendMessage(m.jid, {
+                    text: style(menu),
+                    contextInfo: {
+                        externalAdReply: {
+                            title: style(`Hey ${m.pushName}!`),
+                            body: style(`${config.BOT_INFO.split(";")[0]}`),
+                            sourceUrl: "https://sparky.biz.id",
+                            mediaType: 1,
+                            showAdAttribution: true,
+                            renderLargerThumbnail: true,
+                            thumbnailUrl: `${config.BOT_INFO.split(";")[2]}`
+                        }
+                    }
+                }, { quoted: m });
+            }
+            case 'image': {
+                return await m.sendFromUrl(config.BOT_INFO.split(";")[2], { caption: style(menu) });
+            }
+            case 'small': {
+                return await client.sendMessage(m.jid, {
+                    text: style(menu),
+                    contextInfo: {
+                        externalAdReply: {
+                            title: style(`Hey ${m.pushName}!`),
+                            body: style(`${config.BOT_INFO.split(";")[0]}`),
+                            sourceUrl: "https://sparky.biz.id",
+                            mediaUrl: "https://sparky.biz.id",
+                            mediaType: 1,
+                            showAdAttribution: true,
+                            renderLargerThumbnail: false,
+                            thumbnailUrl: `${config.BOT_INFO.split(";")[2]}`
+                        }
+                    }
+                }, { quoted: sperky });
+            }
+            case 'document': {
+                return await client.sendMessage(m.jid, {
+                    document: {
+                        url: 'https://i.ibb.co/pnPNhMZ/2843ad26fd25.jpg'
+                    },
+                    caption: menu,
+                    mimetype: 'application/zip',
+                    fileName: style(config.BOT_INFO.split(";")[0]),
+                    fileLength: "99999999999",
+                    contextInfo: {
+                        externalAdReply: {
+                            title: style(`Hey ${m.pushName}!`),
+                            body: style(`${config.BOT_INFO.split(";")[0]}`),
+                            sourceUrl: "https://sparky.biz.id",
+                            mediaType: 1,
+                            showAdAttribution: true,
+                            renderLargerThumbnail: true,
+                            thumbnailUrl: `${config.BOT_INFO.split(";")[2]}`
+                        }
+                    }
+                }, {
+                    quoted: sperky
+                });
+            }
+            case 'text': {
+                return await client.sendMessage(m.jid, {
+                    text: style(menu)
+                }, {
+                    quoted: sperky
+                });
+            }
+            case 'video': {
+                return await client.sendMessage(
+                    m.jid,
+                    {
+                        video: { url: config.BOT_INFO.split(";")[2] },
+                        caption: style(menu),
+                        gifPlayback: true
+                    },
+                    { quoted: sperky }
+                );
+            }
+            case 'payment': {
+                return await client.relayMessage(m.jid, {
+                    requestPaymentMessage: {
+                        currencyCodeIso4217: 'INR',
+                        amount1000: '99000',
+                        requestFrom: m.sender.jid,
+                        noteMessage: {
+                            extendedTextMessage: {
+                                text: style(menu)
+                            }
+                        },
+                        expiryTimestamp: '0',
+                        amount: {
+                            value: '99000',
+                            offset: 1000,
+                            currencyCode: 'INR'
+                        },
+                    }
+                }, {});
+            }
+            default: {
+                console.log("Unsupported menu format!", config.MENU_TYPE);
+                // Fallback to text
+                return await client.sendMessage(m.jid, {
+                    text: style(menu)
+                }, {
+                    quoted: sperky
+                });
+            }
+        }
 
     } catch (e) {
         console.log('Menu error:', e);
-        // Fallback to text menu if interactive menu fails
         await m.reply(`*${config.BOT_INFO.split(";")[0]} Menu*\n\nUse ${m.prefix}list to see all commands.`);
     }
 });
