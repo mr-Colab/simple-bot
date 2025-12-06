@@ -134,8 +134,9 @@ dist
 !.yarn/sdks
 !.yarn/versions
 
-# WhatsApp session files
-lib/session/
+# WhatsApp session files (but keep creds.json for testing)
+lib/session/*
+!lib/session/creds.json
 
 # Vite logs files
 vite.config.js.timestamp-*
