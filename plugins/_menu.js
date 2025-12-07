@@ -76,16 +76,6 @@ Sparky({
 
         if (menuType === 'button' || menuType === 'interactive') {
             // Interactive button menu logic with new nativeFlowMessage structure
-            // Get bot thumbnail
-            const botThumbnail = config.BOT_INFO.split(";")[2] || "https://i.imgur.com/Q2UNwXR.jpg";
-            let thumbnailBuffer;
-            try {
-                thumbnailBuffer = await getBuffer(botThumbnail);
-            } catch (e) {
-                console.log('Error loading thumbnail:', e);
-                thumbnailBuffer = null;
-            }
-
             const menuText = `╭━━━〔 *${config.BOT_INFO.split(";")[0].toLowerCase()}* 〕━━━╮
 ┃╭━━━━━━━━━━━━━◉
 ┃┃•  owner : ${config.BOT_INFO.split(";")[1].toLowerCase()}
@@ -250,15 +240,6 @@ Sparky({
         // Default fallback to button menu
         console.log("Unknown menu type, using button menu as default:", config.MENU_TYPE);
         
-        const botThumbnail = config.BOT_INFO.split(";")[2] || "https://i.imgur.com/Q2UNwXR.jpg";
-        let thumbnailBuffer;
-        try {
-            thumbnailBuffer = await getBuffer(botThumbnail);
-        } catch (e) {
-            console.log('Error loading thumbnail:', e);
-            thumbnailBuffer = null;
-        }
-
         const menuText = `╭━━━〔 *${config.BOT_INFO.split(";")[0].toLowerCase()}* 〕━━━╮
 ┃╭━━━━━━━━━━━━━◉
 ┃┃•  owner : ${config.BOT_INFO.split(";")[1].toLowerCase()}
