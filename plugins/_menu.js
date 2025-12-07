@@ -74,7 +74,7 @@ Sparky({
         const menuType = config.MENU_TYPE ? config.MENU_TYPE.toLowerCase() : 'button';
 
         if (menuType === 'button' || menuType === 'interactive') {
-            // Interactive button menu logic
+            // Interactive button menu logic with new nativeFlowMessage structure
             let categories = [];
             commands.forEach((command) => {
                 if (!command.dontAddCommandList && command.category) {
@@ -115,9 +115,17 @@ Sparky({
                 id: `${m.prefix}allcmds`
             });
 
-            return await client.sendMessage(m.jid, {
-                image: { url: config.BOT_INFO.split(";")[2] || "https://i.imgur.com/Q2UNwXR.jpg" },
-                caption: `╭━━━〔 *${config.BOT_INFO.split(";")[0].toLowerCase()}* 〕━━━╮
+            // Get bot thumbnail
+            const botThumbnail = config.BOT_INFO.split(";")[2] || "https://i.imgur.com/Q2UNwXR.jpg";
+            let thumbnailBuffer;
+            try {
+                thumbnailBuffer = await getBuffer(botThumbnail);
+            } catch (e) {
+                console.log('Error loading thumbnail:', e);
+                thumbnailBuffer = null;
+            }
+
+            const menuText = `╭━━━〔 *${config.BOT_INFO.split(";")[0].toLowerCase()}* 〕━━━╮
 ┃╭━━━━━━━━━━━━━◉
 ┃┃•  owner : ${config.BOT_INFO.split(";")[1].toLowerCase()}
 ┃┃•  mode : ${config.WORK_TYPE.toLowerCase()}
@@ -129,32 +137,67 @@ Sparky({
 ┃┃•  ram : ${ramUsed}MB / ${ramTotal}MB
 ┃┃•  plugins : ${commands.length}
 ┃╰━━━━━━━━━━━━━◉
-╰━━━━━━━━━━━━━>
+╰━━━━━━━━━━━━━>`;
 
-*Select a category from the button below:*`,
-                buttons: [
-                    {
-                        buttonId: 'menu_categories',
-                        buttonText: {
-                            displayText: '📂 Select Menu Category'
-                        },
-                        type: 4,
-                        nativeFlowInfo: {
-                            name: 'single_select',
-                            paramsJson: JSON.stringify({
-                                title: `${config.BOT_INFO.split(";")[0]} Menu`,
-                                sections: [
-                                    {
-                                        title: '🔍 Choose a Category',
-                                        highlight_label: 'Main Menu',
-                                        rows: categoryRows
-                                    }
-                                ]
-                            })
-                        }
+            return await client.sendMessage(m.jid, {
+                interactiveMessage: {
+                    title: menuText,
+                    footer: config.BOT_INFO.split(";")[0],
+                    thumbnail: thumbnailBuffer,
+                    nativeFlowMessage: {
+                        messageParamsJson: JSON.stringify({
+                            limited_time_offer: {
+                                text: config.BOT_INFO.split(";")[0],
+                                url: "https://github.com/A-S-W-I-N-S-P-A-R-K-Y/X--BOT--MD",
+                                expiration_time: Date.now() * 9999
+                            },
+                            bottom_sheet: {
+                                in_thread_buttons_limit: 2,
+                                divider_indices: [1, 2, 3, 4, 5, 999],
+                                list_title: config.BOT_INFO.split(";")[0],
+                                button_title: "Menu Categories"
+                            },
+                            tap_target_configuration: {
+                                title: "▸ Menu ◂",
+                                description: config.BOT_INFO.split(";")[0],
+                                canonical_url: "https://github.com/A-S-W-I-N-S-P-A-R-K-Y/X--BOT--MD",
+                                domain: "github.com",
+                                button_index: 0
+                            }
+                        }),
+                        buttons: [
+                            {
+                                name: "single_select",
+                                buttonParamsJson: JSON.stringify({ has_multiple_buttons: true })
+                            },
+                            {
+                                name: "call_permission_request",
+                                buttonParamsJson: JSON.stringify({ has_multiple_buttons: true })
+                            },
+                            {
+                                name: "single_select",
+                                buttonParamsJson: JSON.stringify({
+                                    title: "¿ Select Menu ?",
+                                    sections: [
+                                        {
+                                            title: `# ${config.BOT_INFO.split(";")[0]}`,
+                                            highlight_label: "Categories",
+                                            rows: categoryRows
+                                        }
+                                    ],
+                                    has_multiple_buttons: true
+                                })
+                            },
+                            {
+                                name: "quick_reply",
+                                buttonParamsJson: JSON.stringify({
+                                    display_text: "📜 All Commands",
+                                    id: `${m.prefix}allcmds`
+                                })
+                            }
+                        ]
                     }
-                ],
-                headerType: 1
+                }
             }, { quoted: m });
         }
 
