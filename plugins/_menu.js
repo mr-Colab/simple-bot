@@ -75,46 +75,7 @@ Sparky({
 
         if (menuType === 'button' || menuType === 'interactive') {
             // Interactive button menu logic with new nativeFlowMessage structure
-            let categories = [];
-            commands.forEach((command) => {
-                if (!command.dontAddCommandList && command.category) {
-                    const category = command.category.toLowerCase();
-                    if (!categories.includes(category)) {
-                        categories.push(category);
-                    }
-                }
-            });
-            categories.sort();
-
-            const categoryRows = categories.map((cat) => {
-                const categoryNames = {
-                    'downloader': { emoji: '📥', title: 'Download Menu', desc: 'Media download commands' },
-                    'converters': { emoji: '🔄', title: 'Converter Menu', desc: 'Media conversion commands' },
-                    'misc': { emoji: '🛠️', title: 'Miscellaneous Menu', desc: 'Utility and tool commands' },
-                    'group': { emoji: '👥', title: 'Group Menu', desc: 'Group management commands' },
-                    'sudo': { emoji: '👑', title: 'Owner Menu', desc: 'Bot owner commands' },
-                    'manage': { emoji: '⚙️', title: 'Management Menu', desc: 'Bot management commands' }
-                };
-
-                const catInfo = categoryNames[cat] || { 
-                    emoji: '📂', 
-                    title: cat.charAt(0).toUpperCase() + cat.slice(1) + ' Menu',
-                    desc: cat.charAt(0).toUpperCase() + cat.slice(1) + ' commands'
-                };
-
-                return {
-                    title: `${catInfo.emoji} ${catInfo.title}`,
-                    description: catInfo.desc,
-                    id: `${m.prefix}listcmd ${cat}`
-                };
-            });
-
-            categoryRows.unshift({
-                title: '📜 All Commands',
-                description: 'View complete command list',
-                id: `${m.prefix}allcmds`
-            });
-
+            
             // Get bot thumbnail
             const botThumbnail = config.BOT_INFO.split(";")[2] || "https://i.imgur.com/Q2UNwXR.jpg";
             let thumbnailBuffer;
@@ -182,7 +143,28 @@ Sparky({
                                         {
                                             title: `# ${config.BOT_INFO.split(";")[0]}`,
                                             highlight_label: "Categories",
-                                            rows: categoryRows
+                                            rows: [
+                                                {
+                                                    title: "📥 Download Menu",
+                                                    description: "Media download commands",
+                                                    id: `${m.prefix}downloadmenu`
+                                                },
+                                                {
+                                                    title: "👥 Group Menu",
+                                                    description: "Group management commands",
+                                                    id: `${m.prefix}groupmenu`
+                                                },
+                                                {
+                                                    title: "👑 Owner Menu",
+                                                    description: "Bot owner commands",
+                                                    id: `${m.prefix}ownermenu`
+                                                },
+                                                {
+                                                    title: "🛠️ Other Menu",
+                                                    description: "Miscellaneous commands",
+                                                    id: `${m.prefix}othermenu`
+                                                }
+                                            ]
                                         }
                                     ],
                                     has_multiple_buttons: true
@@ -496,6 +478,142 @@ Sparky({
     } catch (e) {
         console.log('Allcmds error:', e);
         await m.reply('Error displaying commands');
+    }
+});
+
+// Group Menu Command
+Sparky({
+    name: "groupmenu",
+    category: "misc",
+    fromMe: isPublic,
+    desc: "Display group management commands"
+}, async ({ client, m, args }) => {
+    try {
+        let cmdList = `╭━━━〔 *GROUP MENU* 〕━━━╮\n┃\n`;
+        
+        let found = false;
+        commands.forEach((command) => {
+            if (command.category && command.category.toLowerCase() === 'group' && !command.dontAddCommandList) {
+                let cmdName = command.name;
+                if (cmdName) {
+                    let name = cmdName.source.split('\\s*')[1].toString().match(/(\W*)([A-Za-züşiğ öç1234567890|]*)/)[2];
+                    cmdList += `┃ • ${m.prefix}${name}\n`;
+                    found = true;
+                }
+            }
+        });
+
+        if (!found) {
+            cmdList += '┃ • No group commands available\n';
+        }
+
+        cmdList += '┃\n╰━━━━━━━━━━━━━━━╯';
+        await m.reply(style(cmdList));
+    } catch (e) {
+        console.log('Groupmenu error:', e);
+        await m.reply('Error displaying group menu');
+    }
+});
+
+// Owner Menu Command
+Sparky({
+    name: "ownermenu",
+    category: "misc",
+    fromMe: isPublic,
+    desc: "Display owner/sudo commands"
+}, async ({ client, m, args }) => {
+    try {
+        let cmdList = `╭━━━〔 *OWNER MENU* 〕━━━╮\n┃\n`;
+        
+        let found = false;
+        commands.forEach((command) => {
+            if (command.category && command.category.toLowerCase() === 'sudo' && !command.dontAddCommandList) {
+                let cmdName = command.name;
+                if (cmdName) {
+                    let name = cmdName.source.split('\\s*')[1].toString().match(/(\W*)([A-Za-züşiğ öç1234567890|]*)/)[2];
+                    cmdList += `┃ • ${m.prefix}${name}\n`;
+                    found = true;
+                }
+            }
+        });
+
+        if (!found) {
+            cmdList += '┃ • No owner commands available\n';
+        }
+
+        cmdList += '┃\n╰━━━━━━━━━━━━━━━╯';
+        await m.reply(style(cmdList));
+    } catch (e) {
+        console.log('Ownermenu error:', e);
+        await m.reply('Error displaying owner menu');
+    }
+});
+
+// Downloader Menu Command
+Sparky({
+    name: "downloadmenu",
+    category: "misc",
+    fromMe: isPublic,
+    desc: "Display download commands"
+}, async ({ client, m, args }) => {
+    try {
+        let cmdList = `╭━━━〔 *DOWNLOAD MENU* 〕━━━╮\n┃\n`;
+        
+        let found = false;
+        commands.forEach((command) => {
+            if (command.category && command.category.toLowerCase() === 'downloader' && !command.dontAddCommandList) {
+                let cmdName = command.name;
+                if (cmdName) {
+                    let name = cmdName.source.split('\\s*')[1].toString().match(/(\W*)([A-Za-züşiğ öç1234567890|]*)/)[2];
+                    cmdList += `┃ • ${m.prefix}${name}\n`;
+                    found = true;
+                }
+            }
+        });
+
+        if (!found) {
+            cmdList += '┃ • No download commands available\n';
+        }
+
+        cmdList += '┃\n╰━━━━━━━━━━━━━━━╯';
+        await m.reply(style(cmdList));
+    } catch (e) {
+        console.log('Downloadmenu error:', e);
+        await m.reply('Error displaying download menu');
+    }
+});
+
+// Other/Misc Menu Command
+Sparky({
+    name: "othermenu",
+    category: "misc",
+    fromMe: isPublic,
+    desc: "Display miscellaneous commands"
+}, async ({ client, m, args }) => {
+    try {
+        let cmdList = `╭━━━〔 *OTHER MENU* 〕━━━╮\n┃\n`;
+        
+        let found = false;
+        commands.forEach((command) => {
+            if (command.category && command.category.toLowerCase() === 'misc' && !command.dontAddCommandList) {
+                let cmdName = command.name;
+                if (cmdName) {
+                    let name = cmdName.source.split('\\s*')[1].toString().match(/(\W*)([A-Za-züşiğ öç1234567890|]*)/)[2];
+                    cmdList += `┃ • ${m.prefix}${name}\n`;
+                    found = true;
+                }
+            }
+        });
+
+        if (!found) {
+            cmdList += '┃ • No misc commands available\n';
+        }
+
+        cmdList += '┃\n╰━━━━━━━━━━━━━━━╯';
+        await m.reply(style(cmdList));
+    } catch (e) {
+        console.log('Othermenu error:', e);
+        await m.reply('Error displaying other menu');
     }
 });
 
