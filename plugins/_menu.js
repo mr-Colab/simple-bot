@@ -13,6 +13,7 @@ const menust = config.MENU_FONT;
 const style = font[menust];
 const more = String.fromCharCode(8206);
 const readMore = more.repeat(4001);
+const { generateWAMessageFromContent, proto } = require("baileys");
 
 // Platform detection
 let SERVER = process.env.PWD?.includes("userland") ? "LINUX"
@@ -99,87 +100,74 @@ Sparky({
 ┃╰━━━━━━━━━━━━━◉
 ╰━━━━━━━━━━━━━>`;
 
-            return await client.sendMessage(m.jid, {
-                interactiveMessage: {
-                    title: menuText,
-                    footer: config.BOT_INFO.split(";")[0],
-                    thumbnail: thumbnailBuffer,
-                    nativeFlowMessage: {
-                        messageParamsJson: JSON.stringify({
-                            limited_time_offer: {
-                                text: config.BOT_INFO.split(";")[0],
-                                url: "https://github.com/A-S-W-I-N-S-P-A-R-K-Y/X--BOT--MD",
-                                expiration_time: Date.now() * 9999
-                            },
-                            bottom_sheet: {
-                                in_thread_buttons_limit: 2,
-                                divider_indices: [1, 2, 3, 4, 5, 999],
-                                list_title: config.BOT_INFO.split(";")[0],
-                                button_title: "Menu Categories"
-                            },
-                            tap_target_configuration: {
-                                title: "▸ Menu ◂",
-                                description: config.BOT_INFO.split(";")[0],
-                                canonical_url: "https://github.com/A-S-W-I-N-S-P-A-R-K-Y/X--BOT--MD",
-                                domain: "github.com",
-                                button_index: 0
-                            }
-                        }),
-                        buttons: [
-                            {
-                                name: "single_select",
-                                buttonParamsJson: JSON.stringify({ has_multiple_buttons: true })
-                            },
-                            {
-                                name: "call_permission_request",
-                                buttonParamsJson: JSON.stringify({ has_multiple_buttons: true })
-                            },
-                            {
-                                name: "single_select",
-                                buttonParamsJson: JSON.stringify({
-                                    title: "¿ Select Menu ?",
-                                    sections: [
-                                        {
-                                            title: `# ${config.BOT_INFO.split(";")[0]}`,
-                                            highlight_label: "Categories",
-                                            rows: [
-                                                {
-                                                    title: "📥 Download Menu",
-                                                    description: "Media download commands",
-                                                    id: `${m.prefix}downloadmenu`
-                                                },
-                                                {
-                                                    title: "👥 Group Menu",
-                                                    description: "Group management commands",
-                                                    id: `${m.prefix}groupmenu`
-                                                },
-                                                {
-                                                    title: "👑 Owner Menu",
-                                                    description: "Bot owner commands",
-                                                    id: `${m.prefix}ownermenu`
-                                                },
-                                                {
-                                                    title: "🛠️ Other Menu",
-                                                    description: "Miscellaneous commands",
-                                                    id: `${m.prefix}othermenu`
-                                                }
-                                            ]
-                                        }
-                                    ],
-                                    has_multiple_buttons: true
-                                })
-                            },
-                            {
-                                name: "quick_reply",
-                                buttonParamsJson: JSON.stringify({
-                                    display_text: "📜 All Commands",
-                                    id: `${m.prefix}allcmds`
-                                })
-                            }
-                        ]
+            const interactiveMsg = {
+                body: proto.Message.InteractiveMessage.Body.create({
+                    text: menuText
+                }),
+                footer: proto.Message.InteractiveMessage.Footer.create({
+                    text: config.BOT_INFO.split(";")[0]
+                }),
+                header: proto.Message.InteractiveMessage.Header.create({
+                    title: "",
+                    subtitle: "",
+                    hasMediaAttachment: false
+                }),
+                nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+                    buttons: [
+                        {
+                            name: "single_select",
+                            buttonParamsJson: JSON.stringify({
+                                title: "¿ Select Menu ?",
+                                sections: [
+                                    {
+                                        title: `# ${config.BOT_INFO.split(";")[0]}`,
+                                        highlight_label: "Categories",
+                                        rows: [
+                                            {
+                                                title: "📥 Download Menu",
+                                                description: "Media download commands",
+                                                id: `${m.prefix}downloadmenu`
+                                            },
+                                            {
+                                                title: "👥 Group Menu",
+                                                description: "Group management commands",
+                                                id: `${m.prefix}groupmenu`
+                                            },
+                                            {
+                                                title: "👑 Owner Menu",
+                                                description: "Bot owner commands",
+                                                id: `${m.prefix}ownermenu`
+                                            },
+                                            {
+                                                title: "🛠️ Other Menu",
+                                                description: "Miscellaneous commands",
+                                                id: `${m.prefix}othermenu`
+                                            }
+                                        ]
+                                    }
+                                ]
+                            })
+                        },
+                        {
+                            name: "quick_reply",
+                            buttonParamsJson: JSON.stringify({
+                                display_text: "📜 All Commands",
+                                id: `${m.prefix}allcmds`
+                            })
+                        }
+                    ]
+                })
+            };
+
+            const msg = generateWAMessageFromContent(m.jid, {
+                viewOnceMessage: {
+                    message: {
+                        interactiveMessage: proto.Message.InteractiveMessage.create(interactiveMsg)
                     }
                 }
             }, { quoted: m });
+
+            return await client.relayMessage(m.jid, msg.message, { messageId: msg.key.id });
         }
 
         // Text menu as 2nd option
@@ -285,87 +273,74 @@ Sparky({
 ┃╰━━━━━━━━━━━━━◉
 ╰━━━━━━━━━━━━━>`;
 
-        return await client.sendMessage(m.jid, {
-            interactiveMessage: {
-                title: menuText,
-                footer: config.BOT_INFO.split(";")[0],
-                thumbnail: thumbnailBuffer,
-                nativeFlowMessage: {
-                    messageParamsJson: JSON.stringify({
-                        limited_time_offer: {
-                            text: config.BOT_INFO.split(";")[0],
-                            url: "https://github.com/A-S-W-I-N-S-P-A-R-K-Y/X--BOT--MD",
-                            expiration_time: Date.now() * 9999
-                        },
-                        bottom_sheet: {
-                            in_thread_buttons_limit: 2,
-                            divider_indices: [1, 2, 3, 4, 5, 999],
-                            list_title: config.BOT_INFO.split(";")[0],
-                            button_title: "Menu Categories"
-                        },
-                        tap_target_configuration: {
-                            title: "▸ Menu ◂",
-                            description: config.BOT_INFO.split(";")[0],
-                            canonical_url: "https://github.com/A-S-W-I-N-S-P-A-R-K-Y/X--BOT--MD",
-                            domain: "github.com",
-                            button_index: 0
-                        }
-                    }),
-                    buttons: [
-                        {
-                            name: "single_select",
-                            buttonParamsJson: JSON.stringify({ has_multiple_buttons: true })
-                        },
-                        {
-                            name: "call_permission_request",
-                            buttonParamsJson: JSON.stringify({ has_multiple_buttons: true })
-                        },
-                        {
-                            name: "single_select",
-                            buttonParamsJson: JSON.stringify({
-                                title: "¿ Select Menu ?",
-                                sections: [
-                                    {
-                                        title: `# ${config.BOT_INFO.split(";")[0]}`,
-                                        highlight_label: "Categories",
-                                        rows: [
-                                            {
-                                                title: "📥 Download Menu",
-                                                description: "Media download commands",
-                                                id: `${m.prefix}downloadmenu`
-                                            },
-                                            {
-                                                title: "👥 Group Menu",
-                                                description: "Group management commands",
-                                                id: `${m.prefix}groupmenu`
-                                            },
-                                            {
-                                                title: "👑 Owner Menu",
-                                                description: "Bot owner commands",
-                                                id: `${m.prefix}ownermenu`
-                                            },
-                                            {
-                                                title: "🛠️ Other Menu",
-                                                description: "Miscellaneous commands",
-                                                id: `${m.prefix}othermenu`
-                                            }
-                                        ]
-                                    }
-                                ],
-                                has_multiple_buttons: true
-                            })
-                        },
-                        {
-                            name: "quick_reply",
-                            buttonParamsJson: JSON.stringify({
-                                display_text: "📜 All Commands",
-                                id: `${m.prefix}allcmds`
-                            })
-                        }
-                    ]
+        const interactiveMsg = {
+            body: proto.Message.InteractiveMessage.Body.create({
+                text: menuText
+            }),
+            footer: proto.Message.InteractiveMessage.Footer.create({
+                text: config.BOT_INFO.split(";")[0]
+            }),
+            header: proto.Message.InteractiveMessage.Header.create({
+                title: "",
+                subtitle: "",
+                hasMediaAttachment: false
+            }),
+            nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+                buttons: [
+                    {
+                        name: "single_select",
+                        buttonParamsJson: JSON.stringify({
+                            title: "¿ Select Menu ?",
+                            sections: [
+                                {
+                                    title: `# ${config.BOT_INFO.split(";")[0]}`,
+                                    highlight_label: "Categories",
+                                    rows: [
+                                        {
+                                            title: "📥 Download Menu",
+                                            description: "Media download commands",
+                                            id: `${m.prefix}downloadmenu`
+                                        },
+                                        {
+                                            title: "👥 Group Menu",
+                                            description: "Group management commands",
+                                            id: `${m.prefix}groupmenu`
+                                        },
+                                        {
+                                            title: "👑 Owner Menu",
+                                            description: "Bot owner commands",
+                                            id: `${m.prefix}ownermenu`
+                                        },
+                                        {
+                                            title: "🛠️ Other Menu",
+                                            description: "Miscellaneous commands",
+                                            id: `${m.prefix}othermenu`
+                                        }
+                                    ]
+                                }
+                            ]
+                        })
+                    },
+                    {
+                        name: "quick_reply",
+                        buttonParamsJson: JSON.stringify({
+                            display_text: "📜 All Commands",
+                            id: `${m.prefix}allcmds`
+                        })
+                    }
+                ]
+            })
+        };
+
+        const msg = generateWAMessageFromContent(m.jid, {
+            viewOnceMessage: {
+                message: {
+                    interactiveMessage: proto.Message.InteractiveMessage.create(interactiveMsg)
                 }
             }
         }, { quoted: m });
+
+        return await client.relayMessage(m.jid, msg.message, { messageId: msg.key.id });
 
     } catch (e) {
         console.log('Menu error:', e);
