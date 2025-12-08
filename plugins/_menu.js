@@ -74,7 +74,7 @@ Sparky({
         const menuType = config.MENU_TYPE ? config.MENU_TYPE.toLowerCase() : 'button';
 
         if (menuType === 'button' || menuType === 'interactive') {
-            // Interactive button menu logic
+            // Interactive button menu logic - pair.js style
             let categories = [];
             commands.forEach((command) => {
                 if (!command.dontAddCommandList && command.category) {
@@ -88,18 +88,18 @@ Sparky({
 
             const categoryRows = categories.map((cat) => {
                 const categoryNames = {
-                    'downloader': { emoji: '📥', title: 'Download Menu', desc: 'Media download commands' },
-                    'converters': { emoji: '🔄', title: 'Converter Menu', desc: 'Media conversion commands' },
-                    'misc': { emoji: '🛠️', title: 'Miscellaneous Menu', desc: 'Utility and tool commands' },
-                    'group': { emoji: '👥', title: 'Group Menu', desc: 'Group management commands' },
-                    'sudo': { emoji: '👑', title: 'Owner Menu', desc: 'Bot owner commands' },
-                    'manage': { emoji: '⚙️', title: 'Management Menu', desc: 'Bot management commands' }
+                    'downloader': { emoji: '📥', title: 'ᴅᴏᴡɴʟᴏᴀᴅ ᴍᴇɴᴜ', desc: 'ᴍᴇᴅɪᴀ ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴏᴍᴍᴀɴᴅs' },
+                    'converters': { emoji: '🔄', title: 'ᴄᴏɴᴠᴇʀᴛᴇʀ ᴍᴇɴᴜ', desc: 'ᴍᴇᴅɪᴀ ᴄᴏɴᴠᴇʀsɪᴏɴ ᴄᴏᴍᴍᴀɴᴅs' },
+                    'misc': { emoji: '🛠️', title: 'ᴍɪsᴄᴇʟʟᴀɴᴇᴏᴜs ᴍᴇɴᴜ', desc: 'ᴜᴛɪʟɪᴛʏ ᴀɴᴅ ᴛᴏᴏʟ ᴄᴏᴍᴍᴀɴᴅs' },
+                    'group': { emoji: '👥', title: 'ɢʀᴏᴜᴘ ᴍᴇɴᴜ', desc: 'ɢʀᴏᴜᴘ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ ᴄᴏᴍᴍᴀɴᴅs' },
+                    'sudo': { emoji: '👑', title: 'ᴏᴡɴᴇʀ ᴍᴇɴᴜ', desc: 'ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅs' },
+                    'manage': { emoji: '⚙️', title: 'ᴍᴀɴᴀɢᴇᴍᴇɴᴛ ᴍᴇɴᴜ', desc: 'ʙᴏᴛ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ ᴄᴏᴍᴍᴀɴᴅs' }
                 };
 
                 const catInfo = categoryNames[cat] || { 
                     emoji: '📂', 
-                    title: cat.charAt(0).toUpperCase() + cat.slice(1) + ' Menu',
-                    desc: cat.charAt(0).toUpperCase() + cat.slice(1) + ' commands'
+                    title: cat.charAt(0).toUpperCase() + cat.slice(1) + ' ᴍᴇɴᴜ',
+                    desc: cat.charAt(0).toUpperCase() + cat.slice(1) + ' ᴄᴏᴍᴍᴀɴᴅs'
                 };
 
                 return {
@@ -110,12 +110,12 @@ Sparky({
             });
 
             categoryRows.unshift({
-                title: '📜 All Commands',
-                description: 'View complete command list',
+                title: '📜 ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅs',
+                description: 'ᴠɪᴇᴡ ᴄᴏᴍᴘʟᴇᴛᴇ ᴄᴏᴍᴍᴀɴᴅ ʟɪsᴛ',
                 id: `${m.prefix}allcmds`
             });
 
-            return await client.sendMessage(m.jid, {
+            const menuMessage = {
                 image: { url: config.BOT_INFO.split(";")[2] || "https://i.imgur.com/Q2UNwXR.jpg" },
                 caption: `╭━━━〔 *${config.BOT_INFO.split(";")[0].toLowerCase()}* 〕━━━╮
 ┃╭━━━━━━━━━━━━━◉
@@ -131,22 +131,20 @@ Sparky({
 ┃╰━━━━━━━━━━━━━◉
 ╰━━━━━━━━━━━━━>
 
-*Select a category from the button below:*`,
+> 📂 sᴇʟᴇᴄᴛ ᴀ ᴄᴀᴛᴇɢᴏʀʏ ғʀᴏᴍ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ`,
                 buttons: [
                     {
-                        buttonId: 'menu_categories',
-                        buttonText: {
-                            displayText: '📂 Select Menu Category'
-                        },
+                        buttonId: `${m.prefix}menu_action`,
+                        buttonText: { displayText: '📂 ᴍᴇɴᴜ ᴄᴀᴛᴇɢᴏʀɪᴇs' },
                         type: 4,
                         nativeFlowInfo: {
                             name: 'single_select',
                             paramsJson: JSON.stringify({
-                                title: `${config.BOT_INFO.split(";")[0]} Menu`,
+                                title: 'ᴄʟɪᴄᴋ ʜᴇʀᴇ ❏',
                                 sections: [
                                     {
-                                        title: '🔍 Choose a Category',
-                                        highlight_label: 'Main Menu',
+                                        title: `${config.BOT_INFO.split(";")[0]} ᴍᴇɴᴜ`,
+                                        highlight_label: 'ᴍᴀɪɴ ᴍᴇɴᴜ',
                                         rows: categoryRows
                                     }
                                 ]
@@ -154,8 +152,11 @@ Sparky({
                         }
                     }
                 ],
-                headerType: 1
-            }, { quoted: m });
+                headerType: 1,
+                viewOnce: true
+            };
+
+            return await client.sendMessage(m.jid, menuMessage, { quoted: m });
         }
 
         // For other menu types, build traditional text menu
