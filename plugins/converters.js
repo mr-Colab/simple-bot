@@ -248,8 +248,9 @@ Sparky({
         
         // Check if quoted message has audio or video
         const quotedType = Array.isArray(m.quoted.mtype) ? m.quoted.mtype[0] : String(m.quoted.mtype || '');
+        const quotedTypeLower = quotedType.toLowerCase();
         
-        if (!quotedType.includes('audio') && !quotedType.includes('video') && !quotedType.includes('Audio') && !quotedType.includes('Video')) {
+        if (!quotedTypeLower.includes('audio') && !quotedTypeLower.includes('video')) {
             return m.reply('*❌ Please reply to a video or audio message!*\n\n*Usage:* Reply to a video/audio with `.tovn`');
         }
 
@@ -259,7 +260,7 @@ Sparky({
         const mediaBuffer = await m.quoted.download();
 
         // Determine file extension based on media type
-        const ext = quotedType.includes('video') || quotedType.includes('Video') ? 'mp4' : 'mp3';
+        const ext = quotedTypeLower.includes('video') ? 'mp4' : 'mp3';
 
         // Use converter.js toPTT function
         const audio = await toPTT(mediaBuffer, ext);
@@ -296,8 +297,9 @@ Sparky({
         
         // Check if quoted message has video
         const quotedType = Array.isArray(m.quoted.mtype) ? m.quoted.mtype[0] : String(m.quoted.mtype || '');
+        const quotedTypeLower = quotedType.toLowerCase();
         
-        if (!quotedType.includes('video') && !quotedType.includes('Video')) {
+        if (!quotedTypeLower.includes('video')) {
             return m.reply('*❌ Please reply to a video message!*\n\n*Usage:* Reply to a video with `.toaudio`');
         }
         
@@ -351,8 +353,9 @@ Sparky({
         
         // Check if quoted message has audio
         const quotedType = Array.isArray(m.quoted.mtype) ? m.quoted.mtype[0] : String(m.quoted.mtype || '');
+        const quotedTypeLower = quotedType.toLowerCase();
         
-        if (!quotedType.includes('audio') && !quotedType.includes('Audio')) {
+        if (!quotedTypeLower.includes('audio')) {
             return m.reply('*❌ Please reply to an audio message!*\n\n*Usage:* Reply to audio with `.chmp3 <channel_jid>`');
         }
 
@@ -361,8 +364,11 @@ Sparky({
         // Download the audio
         const mediaBuffer = await m.quoted.download();
 
+        // Determine file extension based on media type  
+        const ext = 'mp3'; // Default to mp3 for audio files
+
         // Use converter.js toAudio function to ensure proper format
-        const audioBuffer = await toAudio(mediaBuffer, 'mp3');
+        const audioBuffer = await toAudio(mediaBuffer, ext);
 
         // Send audio to channel as voice note
         await client.sendMessage(channelJid, {
