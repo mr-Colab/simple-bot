@@ -188,7 +188,7 @@
         }
 
         // Build startup message
-        var startupMessage = `*X BOT MD STARTED! *
+        var startupMessage = `*LD7 V1 STARTED! *
 
 _Mode: ${config.WORK_TYPE}_
 _Prefix: ${config.HANDLERS}_
@@ -219,7 +219,7 @@ PM Disabler: ${config.DISABLE_PM ? '✅' : '❌'}\`\`\``;
             text: startupMessage,
             contextInfo: {
               externalAdReply: {
-                title: "X BOT MD UPDATES",
+                title: "LD7 V1 UPDATES",
                 body: "Whatsapp Channel",
                 sourceUrl: 'https://whatsapp.com/channel/0029Va9ZOf36rsR1Ym7O2x00',
                 mediaUrl: 'https://whatsapp.com/channel/0029Va9ZOf36rsR1Ym7O2x00',

@@ -41,7 +41,7 @@ async ({
 }) => {
     try {
         if (!args) {
-            return await m.reply("_Example : .pair 917012984396_");
+            return await m.reply("_Example : .pair 13056978303_");
         }
         const pair = await getJson(`https://x-bot-md-qr.koyeb.app/code?number=${args}`);
         if (!pair || !pair.code) {

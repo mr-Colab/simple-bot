@@ -1,5 +1,5 @@
-# X--BOT--MD (Beta) for testers
-## This version of x bot is only for testers to test
+# LD7 V1 (Beta) for testers
+## This version of LD7 bot is only for testers to test
 
 ## Join for updates 
 <p align="center">
@@ -54,7 +54,7 @@
 
 4. Now Deploy
     <br>
-<a href='https://app.koyeb.com/services/deploy?type=git&repository=github.com/A-S-W-I-N-S-P-A-R-K-Y/X--BOT--MD&branch=main&name=xbotmd&builder=dockerfile&env[PHONE_NUMBER]=&env[WORK_TYPE]=public&env[HANDLERS]=.&env[BOT_INFO]=X-BOT-MD;ASWIN%20SPARKY;https://i.imgur.com/QH7T7u9.jpeg&env[SUDO]=917012984396&env[STICKER_DATA]=SPARKY&env[DATABASE_URL]&env[KOYEB_SERVICE_NAME]=xbotmd&env[KOYEB_API_KEY]' target="_blank"><img alt='DEPLOY' src='https://img.shields.io/badge/-DEPLOY-black?style=for-the-badge&logo=koyeb'/></a>
+<a href='https://app.koyeb.com/services/deploy?type=git&repository=github.com/A-S-W-I-N-S-P-A-R-K-Y/X--BOT--MD&branch=main&name=ld7v1&builder=dockerfile&env[PHONE_NUMBER]=&env[WORK_TYPE]=public&env[HANDLERS]=.&env[BOT_INFO]=LD7%20V1;Shizzy%20andy;https://i.imgur.com/QH7T7u9.jpeg&env[SUDO]=13056978303&env[STICKER_DATA]=LD7%20V1&env[DATABASE_URL]&env[KOYEB_SERVICE_NAME]=ld7v1&env[KOYEB_API_KEY]' target="_blank"><img alt='DEPLOY' src='https://img.shields.io/badge/-DEPLOY-black?style=for-the-badge&logo=koyeb'/></a>
 
 #### DEPLOY TO RENDER 
 
