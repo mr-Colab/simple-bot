@@ -93,7 +93,8 @@ Sparky({
                     'misc': { emoji: '🛠️', title: 'ᴍɪsᴄᴇʟʟᴀɴᴇᴏᴜs ᴍᴇɴᴜ', desc: 'ᴜᴛɪʟɪᴛʏ ᴀɴᴅ ᴛᴏᴏʟ ᴄᴏᴍᴍᴀɴᴅs' },
                     'group': { emoji: '👥', title: 'ɢʀᴏᴜᴘ ᴍᴇɴᴜ', desc: 'ɢʀᴏᴜᴘ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ ᴄᴏᴍᴍᴀɴᴅs' },
                     'sudo': { emoji: '👑', title: 'ᴏᴡɴᴇʀ ᴍᴇɴᴜ', desc: 'ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅs' },
-                    'manage': { emoji: '⚙️', title: 'ᴍᴀɴᴀɢᴇᴍᴇɴᴛ ᴍᴇɴᴜ', desc: 'ʙᴏᴛ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ ᴄᴏᴍᴍᴀɴᴅs' }
+                    'manage': { emoji: '⚙️', title: 'ᴍᴀɴᴀɢᴇᴍᴇɴᴛ ᴍᴇɴᴜ', desc: 'ʙᴏᴛ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ ᴄᴏᴍᴍᴀɴᴅs' },
+                    'settings': { emoji: '⚙️', title: 'sᴇᴛᴛɪɴɢs ᴍᴇɴᴜ', desc: 'ʙᴏᴛ sᴇᴛᴛɪɴɢs ᴄᴏᴍᴍᴀɴᴅs' }
                 };
 
                 const catInfo = categoryNames[cat] || { 
@@ -116,7 +117,7 @@ Sparky({
             });
 
             const menuMessage = {
-                image: { url: config.BOT_INFO.split(";")[2] || "https://i.imgur.com/Q2UNwXR.jpg" },
+                image: { url: "https://files.catbox.moe/ll87d6.jpg" },
                 caption: `╭━━━〔 *${config.BOT_INFO.split(";")[0].toLowerCase()}* 〕━━━╮
 ┃╭━━━━━━━━━━━━━◉
 ┃┃•  owner : ${config.BOT_INFO.split(";")[1].toLowerCase()}
@@ -241,13 +242,13 @@ Sparky({
                             mediaType: 1,
                             showAdAttribution: true,
                             renderLargerThumbnail: true,
-                            thumbnailUrl: `${config.BOT_INFO.split(";")[2]}`
+                            thumbnailUrl: "https://files.catbox.moe/ll87d6.jpg"
                         }
                     }
                 }, { quoted: m });
             }
             case 'image': {
-                return await m.sendFromUrl(config.BOT_INFO.split(";")[2], { caption: style(menu) });
+                return await m.sendFromUrl("https://files.catbox.moe/ll87d6.jpg", { caption: style(menu) });
             }
             case 'small': {
                 return await client.sendMessage(m.jid, {
@@ -261,7 +262,7 @@ Sparky({
                             mediaType: 1,
                             showAdAttribution: true,
                             renderLargerThumbnail: false,
-                            thumbnailUrl: `${config.BOT_INFO.split(";")[2]}`
+                            thumbnailUrl: "https://files.catbox.moe/ll87d6.jpg"
                         }
                     }
                 }, { quoted: sperky });
@@ -283,7 +284,7 @@ Sparky({
                             mediaType: 1,
                             showAdAttribution: true,
                             renderLargerThumbnail: true,
-                            thumbnailUrl: `${config.BOT_INFO.split(";")[2]}`
+                            thumbnailUrl: "https://files.catbox.moe/ll87d6.jpg"
                         }
                     }
                 }, {
@@ -446,7 +447,7 @@ Sparky({
                     mediaType: 1,
                     showAdAttribution: true,
                     renderLargerThumbnail: true,
-                    thumbnailUrl: config.BOT_INFO.split(";")[2]
+                    thumbnailUrl: "https://files.catbox.moe/ll87d6.jpg"
                 }
             }
         }, { quoted: m });

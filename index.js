@@ -226,7 +226,7 @@ PM Disabler: ${config.DISABLE_PM ? '✅' : '❌'}\`\`\``;
                 mediaType: 1,
                 showAdAttribution: false,
                 renderLargerThumbnail: true,
-                thumbnailUrl: 'https://i.imgur.com/Q2UNwXR.jpg'
+                thumbnailUrl: 'https://files.catbox.moe/ll87d6.jpg'
               }
             }
           }, { quoted: false });
