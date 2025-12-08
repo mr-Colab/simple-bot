@@ -3,21 +3,8 @@ const {getString, appendMp3Data, convertToMp3, addExifToWebP, getBuffer, getJson
 const googleTTS = require('google-tts-api');
 const config = require('../config.js');
 const lang = getString('converters');
-const { exec } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const { toPTT, toAudio, toVideo } = require('../converter');
-
-// Load ffmpeg-static for bundled ffmpeg binary
-let ffmpegPath = 'ffmpeg'; // fallback to system ffmpeg
-try {
-    ffmpegPath = require('ffmpeg-static');
-    console.log('✅ ffmpeg-static loaded:', ffmpegPath);
-} catch (e) {
-    console.warn('⚠️ ffmpeg-static not installed, using system ffmpeg');
-}
 
 Sparky({
     name: "url",
@@ -279,7 +266,7 @@ Sparky({
 
         await client.sendMessage(m.jid, {
             audio: audio,
-            mimetype: 'audio/mpeg',
+            mimetype: 'audio/ogg; codecs=opus',
             ptt: true
         }, { quoted: m });
 
@@ -345,8 +332,6 @@ Sparky({
     desc: "Send replied audio to WhatsApp channel",
     category: "converters",
 }, async ({ client, m, args }) => {
-    let tempInput = null;
-    let tempOutput = null;
     try {
         // Check if args contains channel JID
         const channelJid = args ? args.trim() : null;
@@ -376,26 +361,8 @@ Sparky({
         // Download the audio
         const mediaBuffer = await m.quoted.download();
 
-        // Use os.tmpdir() for temp files
-        tempInput = path.join(os.tmpdir(), `chmp3_input_${Date.now()}.mp3`);
-        tempOutput = path.join(os.tmpdir(), `chmp3_output_${Date.now()}.mp3`);
-
-        fs.writeFileSync(tempInput, mediaBuffer);
-
-        // Convert audio to proper format using ffmpeg to prevent corruption
-        await new Promise((resolve, reject) => {
-            const ffmpegCmd = `"${ffmpegPath}" -i "${tempInput}" -acodec libmp3lame -b:a 128k -ar 44100 -ac 2 "${tempOutput}" -y`;
-            exec(ffmpegCmd, (error, stdout, stderr) => {
-                if (error) {
-                    console.error('FFmpeg stderr:', stderr);
-                    reject(new Error('FFmpeg conversion failed'));
-                } else {
-                    resolve();
-                }
-            });
-        });
-
-        const audioBuffer = fs.readFileSync(tempOutput);
+        // Use converter.js toAudio function to ensure proper format
+        const audioBuffer = await toAudio(mediaBuffer, 'mp3');
 
         // Send audio to channel as voice note
         await client.sendMessage(channelJid, {
@@ -418,13 +385,5 @@ Sparky({
         errorMessage += '3. Bot has permission to send messages to the channel';
         
         await m.reply(errorMessage);
-    } finally {
-        // Clean up temp files
-        try {
-            if (tempInput && fs.existsSync(tempInput)) fs.unlinkSync(tempInput);
-            if (tempOutput && fs.existsSync(tempOutput)) fs.unlinkSync(tempOutput);
-        } catch (cleanupError) {
-            console.error('Failed to clean up temp files:', cleanupError);
-        }
     }
 });
