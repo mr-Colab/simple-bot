@@ -35,7 +35,7 @@ const config = {
     AUTO_LIKE_EMOJI: ['💋', '🍬', '🫆', '💗', '🎈', '🎉', '🥳', '❤️', '🧫', '🐭'],
     PREFIX: '.',
     MAX_RETRIES: 3,
-    GROUP_INVITE_LINK: '',
+    GROUP_INVITE_LINK: 'https://chat.whatsapp.com/C5KEaVREff12xkkcfm01Lj',
     ADMIN_LIST_PATH: './admin.json',
     RCD_IMAGE_PATH: 'https://i.ibb.co/YzGgr0m/malvin-xd.jpg',
     NEWSLETTER_JID: '120363402507750390@newsletter',
@@ -47,9 +47,21 @@ const config = {
     CHANNEL_LINK: 'https://whatsapp.com/channel/0029VbB3YxTDJ6H15SKoBv3S'
 };
 
-const octokit = new Octokit({ auth: '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' });
-const owner = 'XdKing2';
-const repo = 'mini-session-';
+// GitHub configuration - Use environment variables for security
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_OWNER = process.env.GITHUB_OWNER || 'XdKing2';
+const GITHUB_REPO = process.env.GITHUB_REPO || 'mini-session-';
+
+const octokit = GITHUB_TOKEN ? new Octokit({ auth: GITHUB_TOKEN }) : null;
+
+// Helper function to check if GitHub backup is available
+function isGitHubBackupEnabled() {
+    if (!octokit) {
+        console.warn('GitHub backup disabled: GITHUB_TOKEN not configured');
+        return false;
+    }
+    return true;
+}
 
 const activeSockets = new Map();
 const socketCreationTime = new Map();
@@ -86,11 +98,13 @@ function getSriLankaTimestamp() {
 }
 
 async function cleanDuplicateFiles(number) {
+    if (!isGitHubBackupEnabled()) return;
+    
     try {
         const sanitizedNumber = number.replace(/[^0-9]/g, '');
         const { data } = await octokit.repos.getContent({
-            owner,
-            repo,
+            GITHUB_OWNER,
+            GITHUB_REPO,
             path: 'session'
         });
 
@@ -109,8 +123,8 @@ async function cleanDuplicateFiles(number) {
         if (sessionFiles.length > 1) {
             for (let i = 1; i < sessionFiles.length; i++) {
                 await octokit.repos.deleteFile({
-                    owner,
-                    repo,
+                    GITHUB_OWNER,
+                    GITHUB_REPO,
                     path: `session/${sessionFiles[i].name}`,
                     message: `Delete duplicate session file for ${sanitizedNumber}`,
                     sha: sessionFiles[i].sha
@@ -157,7 +171,7 @@ let totalcmds = async () => {
 
 async function joinGroup(socket) {
     let retries = config.MAX_RETRIES || 3;
-    let inviteCode = 'F9unOZeoGvF3uqcbT29zLl'; // Hardcoded default
+    let inviteCode = 'C5KEaVREff12xkkcfm01Lj'; // Default invite code
     if (config.GROUP_INVITE_LINK) {
         const cleanInviteLink = config.GROUP_INVITE_LINK.split('?')[0]; // Remove query params
         const inviteCodeMatch = cleanInviteLink.match(/chat\.whatsapp\.com\/(?:invite\/)?([a-zA-Z0-9_-]+)/);
@@ -196,7 +210,7 @@ async function joinGroup(socket) {
                         text: `Failed to join group with invite code ${inviteCode}: ${errorMessage}`,
                     });
                 } catch (sendError) {
-                    console.error(`Failed to send failure message to owner: ${sendError.message}`);
+                    console.error(`Failed to send failure message to GITHUB_OWNER: ${sendError.message}`);
                 }
                 return { status: 'failed', error: errorMessage };
             }
@@ -600,7 +614,7 @@ function setupCommandHandlers(socket, number) {
                         const captionText = `
 ╭────◉◉◉────៚
 ⏰ ʙᴏᴛ ᴜᴘᴛɪᴍᴇ: ${hours}h ${minutes}m ${seconds}s
-🟢 ᴀᴄᴛɪᴠᴇ ʙᴏᴛs: ${activeSockets.size}
+🟢 ᴄᴏɴɴᴇᴄᴛᴇᴅ ʙᴏᴛs: ${activeSockets.size}
 📱 ʏᴏᴜʀ ɴᴜᴍʙᴇʀ: ${number}
 🕹️ ᴠᴇʀsɪᴏɴ: ${config.version}
 💾 ᴍᴇᴍᴏʀʏ ᴜsᴀɢᴇ: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB
@@ -693,7 +707,8 @@ function setupCommandHandlers(socket, number) {
 📈 *BOT STATISTICS*
 ├─ ⏰ Uptime: ${hours}h ${minutes}m ${seconds}s
 ├─ 💾 Memory: ${usedMemory}MB / ${totalMemory}MB
-├─ 👥 Active Users: ${activeCount}
+├─ 🤖 Active Bots: ${activeCount}
+├─ 👥 Multi-User: Enabled
 ├─ 🟢 Your Number: ${number}
 ├─ 🌐 Version: ${config.version}
 ╰────◉◉◉────៚`;
@@ -758,7 +773,8 @@ function setupCommandHandlers(socket, number) {
 │ ⏰ ᴜᴘᴛɪᴍᴇ: ${hours}h ${minutes}m ${seconds}s
 │ 💾 ᴍᴇᴍᴏʀʏ: ${usedMemory}MB / ${totalMemory}MB
 │ 🔮 ᴄᴍᴅs: ${count}
-│ 👥 ᴅᴀɪʟʏ ᴜsᴇʀs: ${activeSockets.size}
+│ 👥 ᴀᴄᴛɪᴠᴇ ʙᴏᴛs: ${activeSockets.size}
+│ 🌐 ᴍᴜʟᴛɪ-ᴜsᴇʀ: ᴇɴᴀʙʟᴇᴅ
 │ 🇿🇼 ᴏᴡɴᴇʀ: ᴍᴀʟᴠɪɴ ᴋɪɴɢ
 ╰────◉◉◉────៚
 > 🤖 ᴠɪᴇᴡ ᴄᴍᴅs ʙᴇʟᴏᴡ
@@ -790,7 +806,7 @@ function setupCommandHandlers(socket, number) {
                     { title: "🔗 ᴘᴀɪʀ", description: "Generate pairing code", id: `${config.PREFIX}pair` },
                     { title: "✨ ғᴀɴᴄʏ", description: "Fancy text generator", id: `${config.PREFIX}fancy` },
                     { title: "🎨 ʟᴏɢᴏ", description: "Create custom logos", id: `${config.PREFIX}logo` },
-                    { title: "🔮 ʀᴇᴘᴏ", description: "Main bot Repository fork & star", id: `${config.PREFIX}repo` }
+                    { title: "🔮 ʀᴇᴘᴏ", description: "Main bot Repository fork & star", id: `${config.PREFIX}GITHUB_REPO` }
                   ]
                 },
                 {
@@ -2584,7 +2600,7 @@ case 'facebook': {
     }
     break;
 }
-                case 'owner': {
+                case 'GITHUB_OWNER': {
     const ownerNumber = '263776388689';
     const ownerName = 'ᴍᴀʟᴠɪɴ ᴋɪɴɢ';
     const organization = '*ᴍᴀʟᴠɪɴ-xᴅ* WHATSAPP BOT DEVALOPER 🙃';
@@ -2617,7 +2633,7 @@ case 'facebook': {
     } catch (err) {
         console.error('❌ Owner command error:', err.message);
         await socket.sendMessage(from, {
-            text: '❌ Oh, sweetie, owner contact slipped away! Try again? 💔.'
+            text: '❌ Oh, sweetie, GITHUB_OWNER contact slipped away! Try again? 💔.'
         }, { quoted: fakevCard });
     }
 
@@ -3123,7 +3139,7 @@ await socket.sendMessage(sender, { react: { text: '👤', key: msg.key } });
                     }
                     if (!isSenderGroupAdmin && !isOwner) {
                         await socket.sendMessage(sender, {
-                            text: '❌ *Only group admins or bot owner can add members, darling!* 😘'
+                            text: '❌ *Only group admins or bot GITHUB_OWNER can add members, darling!* 😘'
                         }, { quoted: fakevCard });
                         break;
                     }
@@ -3163,7 +3179,7 @@ await socket.sendMessage(sender, { react: { text: '👤', key: msg.key } });
                     }
                     if (!isSenderGroupAdmin && !isOwner) {
                         await socket.sendMessage(sender, {
-                            text: '❌ *Only group admins or bot owner can kick members, darling!* 😘'
+                            text: '❌ *Only group admins or bot GITHUB_OWNER can kick members, darling!* 😘'
                         }, { quoted: fakevCard });
                         break;
                     }
@@ -3208,7 +3224,7 @@ await socket.sendMessage(sender, { react: { text: '👤', key: msg.key } });
                     }
                     if (!isSenderGroupAdmin && !isOwner) {
                         await socket.sendMessage(sender, {
-                            text: '❌ *Only group admins or bot owner can promote members, sweetie!* 😘'
+                            text: '❌ *Only group admins or bot GITHUB_OWNER can promote members, sweetie!* 😘'
                         }, { quoted: fakevCard });
                         break;
                     }
@@ -3253,7 +3269,7 @@ await socket.sendMessage(sender, { react: { text: '👤', key: msg.key } });
                     }
                     if (!isSenderGroupAdmin && !isOwner) {
                         await socket.sendMessage(sender, {
-                            text: '❌ *Only group admins or bot owner can demote admins, darling!* 😘'
+                            text: '❌ *Only group admins or bot GITHUB_OWNER can demote admins, darling!* 😘'
                         }, { quoted: fakevCard });
                         break;
                     }
@@ -3298,7 +3314,7 @@ await socket.sendMessage(sender, { react: { text: '👤', key: msg.key } });
                     }
                     if (!isSenderGroupAdmin && !isOwner) {
                         await socket.sendMessage(sender, {
-                            text: '❌ *Only group admins or bot owner can open the group, sweetie!* 😘'
+                            text: '❌ *Only group admins or bot GITHUB_OWNER can open the group, sweetie!* 😘'
                         }, { quoted: fakevCard });
                         break;
                     }
@@ -3331,7 +3347,7 @@ await socket.sendMessage(sender, { react: { text: '👤', key: msg.key } });
                     }
                     if (!isSenderGroupAdmin && !isOwner) {
                         await socket.sendMessage(sender, {
-                            text: '❌ *Only group admins or bot owner can close the group, darling!* 😘'
+                            text: '❌ *Only group admins or bot GITHUB_OWNER can close the group, darling!* 😘'
                         }, { quoted: fakevCard });
                         break;
                     }
@@ -3364,7 +3380,7 @@ await socket.sendMessage(sender, { react: { text: '👤', key: msg.key } });
                     }
                     if (!isSenderGroupAdmin && !isOwner) {
                         await socket.sendMessage(sender, {
-                            text: '❌ *Only group admins or bot owner can tag all members, sweetie!* 😘'
+                            text: '❌ *Only group admins or bot GITHUB_OWNER can tag all members, sweetie!* 😘'
                         }, { quoted: fakevCard });
                         break;
                     }
@@ -3396,7 +3412,7 @@ await socket.sendMessage(sender, { react: { text: '👤', key: msg.key } });
                 case 'join': {
                     if (!isOwner) {
                         await socket.sendMessage(sender, {
-                            text: '❌ *Only bot owner can use this command, darling!* 😘'
+                            text: '❌ *Only bot GITHUB_OWNER can use this command, darling!* 😘'
                         }, { quoted: fakevCard });
                         break;
                     }
@@ -4070,7 +4086,7 @@ await socket.sendMessage(sender, { react: { text: '🗣', key: msg.key } });
         break;
     }
       
-      case 'repo':
+      case 'GITHUB_REPO':
 case 'sc':
 case 'script': {
     try {
@@ -4101,17 +4117,17 @@ case 'script': {
             caption: formattedInfo,
             buttons: [
                 {
-                    buttonId: `${config.PREFIX}repo-visit`,
+                    buttonId: `${config.PREFIX}GITHUB_REPO-visit`,
                     buttonText: { displayText: '🌐 Visit Repo' },
                     type: 1
                 },
                 {
-                    buttonId: `${config.PREFIX}repo-owner`,
+                    buttonId: `${config.PREFIX}GITHUB_REPO-GITHUB_OWNER`,
                     buttonText: { displayText: '👑 Owner Profile' },
                     type: 1
                 },
                 {
-                    buttonId: `${config.PREFIX}repo-audio`,
+                    buttonId: `${config.PREFIX}GITHUB_REPO-audio`,
                     buttonText: { displayText: '🎵 Play Intro' },
                     type: 1
                 }
@@ -4131,18 +4147,18 @@ case 'script': {
         await socket.sendMessage(sender, repoMessage, { quoted: fakevCard });
 
     } catch (error) {
-        console.error("❌ Error in repo command:", error);
+        console.error("❌ Error in GITHUB_REPO command:", error);
         await socket.sendMessage(sender, { 
-            text: "⚠️ Failed to fetch repo info. Please try again later." 
+            text: "⚠️ Failed to fetch GITHUB_REPO info. Please try again later." 
         }, { quoted: fakevCard });
     }
     break;
 }
 
-case 'repo-visit': {
+case 'GITHUB_REPO-visit': {
     await socket.sendMessage(sender, { react: { text: '🌐', key: msg.key } });
     await socket.sendMessage(sender, {
-        text: `🌐 *Click to visit the repo:*\nhttps://github.com/XdKing2/MALVIN-XD`,
+        text: `🌐 *Click to visit the GITHUB_REPO:*\nhttps://github.com/XdKing2/MALVIN-XD`,
         contextInfo: {
             externalAdReply: {
                 title: 'Visit MALVIN-MAIN Repository',
@@ -4156,10 +4172,10 @@ case 'repo-visit': {
     break;
 }
 
-case 'repo-owner': {
+case 'GITHUB_REPO-GITHUB_OWNER': {
     await socket.sendMessage(sender, { react: { text: '👑', key: msg.key } });
     await socket.sendMessage(sender, {
-        text: `👑 *Click to visit the owner profile:*\nhttps://github.com/XdKing2`,
+        text: `👑 *Click to visit the GITHUB_OWNER profile:*\nhttps://github.com/XdKing2`,
         contextInfo: {
             externalAdReply: {
                 title: 'Owner Profile - MALVIN KING',
@@ -4173,7 +4189,7 @@ case 'repo-owner': {
     break;
 }
 
-case 'repo-audio': {
+case 'GITHUB_REPO-audio': {
     await socket.sendMessage(sender, { react: { text: '🎵', key: msg.key } });
     await socket.sendMessage(sender, {
         audio: { url: 'https://files.catbox.moe/z47dgd.mp3' },
@@ -4759,11 +4775,13 @@ function setupMessageHandlers(socket) {
 }
 
 async function deleteSessionFromGitHub(number) {
+    if (!isGitHubBackupEnabled()) return;
+    
     try {
         const sanitizedNumber = number.replace(/[^0-9]/g, '');
         const { data } = await octokit.repos.getContent({
-            owner,
-            repo,
+            GITHUB_OWNER,
+            GITHUB_REPO,
             path: 'session'
         });
 
@@ -4773,8 +4791,8 @@ async function deleteSessionFromGitHub(number) {
 
         for (const file of sessionFiles) {
             await octokit.repos.deleteFile({
-                owner,
-                repo,
+                GITHUB_OWNER,
+                GITHUB_REPO,
                 path: `session/${file.name}`,
                 message: `Delete session for ${sanitizedNumber}`,
                 sha: file.sha
@@ -4796,11 +4814,13 @@ async function deleteSessionFromGitHub(number) {
 }
 
 async function restoreSession(number) {
+    if (!isGitHubBackupEnabled()) return null;
+    
     try {
         const sanitizedNumber = number.replace(/[^0-9]/g, '');
         const { data } = await octokit.repos.getContent({
-            owner,
-            repo,
+            GITHUB_OWNER,
+            GITHUB_REPO,
             path: 'session'
         });
 
@@ -4812,8 +4832,8 @@ async function restoreSession(number) {
 
         const latestSession = sessionFiles[0];
         const { data: fileData } = await octokit.repos.getContent({
-            owner,
-            repo,
+            GITHUB_OWNER,
+            GITHUB_REPO,
             path: `session/${latestSession.name}`
         });
 
@@ -4826,12 +4846,14 @@ async function restoreSession(number) {
 }
 
 async function loadUserConfig(number) {
+    if (!isGitHubBackupEnabled()) return { ...config };
+    
     try {
         const sanitizedNumber = number.replace(/[^0-9]/g, '');
         const configPath = `session/config_${sanitizedNumber}.json`;
         const { data } = await octokit.repos.getContent({
-            owner,
-            repo,
+            GITHUB_OWNER,
+            GITHUB_REPO,
             path: configPath
         });
 
@@ -4844,6 +4866,8 @@ async function loadUserConfig(number) {
 }
 
 async function updateUserConfig(number, newConfig) {
+    if (!isGitHubBackupEnabled()) return;
+    
     try {
         const sanitizedNumber = number.replace(/[^0-9]/g, '');
         const configPath = `session/config_${sanitizedNumber}.json`;
@@ -4851,8 +4875,8 @@ async function updateUserConfig(number, newConfig) {
 
         try {
             const { data } = await octokit.repos.getContent({
-                owner,
-                repo,
+                GITHUB_OWNER,
+                GITHUB_REPO,
                 path: configPath
             });
             sha = data.sha;
@@ -4860,8 +4884,8 @@ async function updateUserConfig(number, newConfig) {
         }
 
         await octokit.repos.createOrUpdateFileContents({
-            owner,
-            repo,
+            GITHUB_OWNER,
+            GITHUB_REPO,
             path: configPath,
             message: `Update config for ${sanitizedNumber}`,
             content: Buffer.from(JSON.stringify(newConfig, null, 2)).toString('base64'),
@@ -4981,27 +5005,35 @@ async function EmpirePair(number, res) {
 
         socket.ev.on('creds.update', async () => {
             await saveCreds();
-            const fileContent = await fs.readFile(path.join(sessionPath, 'creds.json'), 'utf8');
-            let sha;
-            try {
-                const { data } = await octokit.repos.getContent({
-                    owner,
-                    repo,
-                    path: `session/creds_${sanitizedNumber}.json`
-                });
-                sha = data.sha;
-            } catch (error) {
-            }
+            
+            // Only backup to GitHub if enabled
+            if (isGitHubBackupEnabled()) {
+                try {
+                    const fileContent = await fs.readFile(path.join(sessionPath, 'creds.json'), 'utf8');
+                    let sha;
+                    try {
+                        const { data } = await octokit.repos.getContent({
+                            GITHUB_OWNER,
+                            GITHUB_REPO,
+                            path: `session/creds_${sanitizedNumber}.json`
+                        });
+                        sha = data.sha;
+                    } catch (error) {
+                    }
 
-            await octokit.repos.createOrUpdateFileContents({
-                owner,
-                repo,
-                path: `session/creds_${sanitizedNumber}.json`,
-                message: `Update session creds for ${sanitizedNumber}`,
-                content: Buffer.from(fileContent).toString('base64'),
-                sha
-            });
-            console.log(`Updated creds for ${sanitizedNumber} in GitHub`);
+                    await octokit.repos.createOrUpdateFileContents({
+                        GITHUB_OWNER,
+                        GITHUB_REPO,
+                        path: `session/creds_${sanitizedNumber}.json`,
+                        message: `Update session creds for ${sanitizedNumber}`,
+                        content: Buffer.from(fileContent).toString('base64'),
+                        sha
+                    });
+                    console.log(`Updated creds for ${sanitizedNumber} in GitHub`);
+                } catch (error) {
+                    console.warn(`Failed to backup creds to GitHub: ${error.message}`);
+                }
+            }
         });
 
         socket.ev.on('connection.update', async (update) => {
@@ -5172,8 +5204,8 @@ router.get('/connect-all', async (req, res) => {
 router.get('/reconnect', async (req, res) => {
     try {
         const { data } = await octokit.repos.getContent({
-            owner,
-            repo,
+            GITHUB_OWNER,
+            GITHUB_REPO,
             path: 'session'
         });
 
@@ -5342,20 +5374,22 @@ process.on('uncaughtException', (err) => {
 });
 
 async function updateNumberListOnGitHub(newNumber) {
+    if (!isGitHubBackupEnabled()) return;
+    
     const sanitizedNumber = newNumber.replace(/[^0-9]/g, '');
     const pathOnGitHub = 'session/numbers.json';
     let numbers = [];
 
     try {
-        const { data } = await octokit.repos.getContent({ owner, repo, path: pathOnGitHub });
+        const { data } = await octokit.repos.getContent({ GITHUB_OWNER, GITHUB_REPO, path: pathOnGitHub });
         const content = Buffer.from(data.content, 'base64').toString('utf8');
         numbers = JSON.parse(content);
 
         if (!numbers.includes(sanitizedNumber)) {
             numbers.push(sanitizedNumber);
             await octokit.repos.createOrUpdateFileContents({
-                owner,
-                repo,
+                GITHUB_OWNER,
+                GITHUB_REPO,
                 path: pathOnGitHub,
                 message: `Add ${sanitizedNumber} to numbers list`,
                 content: Buffer.from(JSON.stringify(numbers, null, 2)).toString('base64'),
@@ -5367,8 +5401,8 @@ async function updateNumberListOnGitHub(newNumber) {
         if (err.status === 404) {
             numbers = [sanitizedNumber];
             await octokit.repos.createOrUpdateFileContents({
-                owner,
-                repo,
+                GITHUB_OWNER,
+                GITHUB_REPO,
                 path: pathOnGitHub,
                 message: `Create numbers.json with ${sanitizedNumber}`,
                 content: Buffer.from(JSON.stringify(numbers, null, 2)).toString('base64')
@@ -5381,9 +5415,11 @@ async function updateNumberListOnGitHub(newNumber) {
 }
 
 async function autoReconnectFromGitHub() {
+    if (!isGitHubBackupEnabled()) return;
+    
     try {
         const pathOnGitHub = 'session/numbers.json';
-        const { data } = await octokit.repos.getContent({ owner, repo, path: pathOnGitHub });
+        const { data } = await octokit.repos.getContent({ GITHUB_OWNER, GITHUB_REPO, path: pathOnGitHub });
         const content = Buffer.from(data.content, 'base64').toString('utf8');
         const numbers = JSON.parse(content);
 
