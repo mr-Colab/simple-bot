@@ -6,7 +6,15 @@ const ffmpeg = require('fluent-ffmpeg');
 const ID3Writer = require('browser-id3-writer');
 const os = require('os');
 const path = require('path');
-const webp = require('node-webpmux')
+const webp = require('node-webpmux');
+
+// Configure fluent-ffmpeg to use ffmpeg-static binary
+try {
+	const ffmpegPath = require('ffmpeg-static');
+	ffmpeg.setFfmpegPath(ffmpegPath);
+} catch (error) {
+	console.warn('ffmpeg-static not found, using system ffmpeg');
+}
 
 
 async function createTmpFile(fileBuffer, extension) {
@@ -83,7 +91,7 @@ async function imageToWebP(buffer, exif) {
 			console.error('Error during conversion:', err);
 			reject(err);
 		}).on('end', () =>
-			resolve(true)).addOutputOptions(['-vcodec', 'libwebp', "-vf", "scale='min(320,iw)':min'(320,ih)':force_original_aspect_ratio=decrease,fps=15, pad=320:320:-1:-1:color=white@0.0, split [a][b]; [a] palettegen=reserve_transparent=on:transparency_color=ffffff [p]; [b][p] paletteuse"]).toFormat('webp').save(outputFilePath);
+			resolve(true)).addOutputOptions(['-vcodec', 'libwebp', "-vf", "scale='min(320,iw)':'min(320,ih)':force_original_aspect_ratio=decrease,fps=15, pad=320:320:-1:-1:color=white@0.0, split [a][b]; [a] palettegen=reserve_transparent=on:transparency_color=ffffff [p]; [b][p] paletteuse"]).toFormat('webp').save(outputFilePath);
 	});
 	const buff = fs.readFileSync(outputFilePath);
 	fs.unlinkSync(outputFilePath);
@@ -107,7 +115,7 @@ async function videoToWebP(buffer, exif) {
 			console.error('Error during conversion:', err);
 			reject(err);
 		}).on('end', () =>
-			resolve(true)).addOutputOptions(["-vcodec", "libwebp", "-vf", "scale='min(320,iw)':min'(320,ih)':force_original_aspect_ratio=decrease,fps=15, pad=320:320:-1:-1:color=white@0.0, split [a][b]; [a] palettegen=reserve_transparent=on:transparency_color=ffffff [p]; [b][p] paletteuse", "-loop", "0", "-ss", "00:00:00", "-t", "00:00:05", "-preset", "default", "-an", "-vsync", "0"]).toFormat('webp').save(outputFilePath);
+			resolve(true)).addOutputOptions(["-vcodec", "libwebp", "-vf", "scale='min(320,iw)':'min(320,ih)':force_original_aspect_ratio=decrease,fps=15, pad=320:320:-1:-1:color=white@0.0, split [a][b]; [a] palettegen=reserve_transparent=on:transparency_color=ffffff [p]; [b][p] paletteuse", "-loop", "0", "-ss", "00:00:00", "-t", "00:00:05", "-preset", "default", "-an", "-vsync", "0"]).toFormat('webp').save(outputFilePath);
 	});
 	const buff = fs.readFileSync(outputFilePath);
 	fs.unlinkSync(outputFilePath);
