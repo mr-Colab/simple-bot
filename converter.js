@@ -2,21 +2,24 @@ const fs = require('fs')
 const path = require('path')
 const { spawn } = require('child_process')
 
+// Use ffmpeg-static for the ffmpeg binary
+const ffmpegPath = require('ffmpeg-static');
+
+// Temp directory for audio/video conversion
+const TEMP_DIR = path.join(__dirname, 'data', 'assets', 'audio');
+
 function ffmpeg(buffer, args = [], ext = '', ext2 = '') {
   return new Promise(async (resolve, reject) => {
     try {
       // Create temp directory if it doesn't exist
-      const tempDir = path.join(__dirname, 'data', 'assets', 'audio');
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
+      if (!fs.existsSync(TEMP_DIR)) {
+        fs.mkdirSync(TEMP_DIR, { recursive: true });
       }
       
-      let tmp = path.join(tempDir, new Date().getTime() + '.' + ext)
+      let tmp = path.join(TEMP_DIR, new Date().getTime() + '.' + ext)
       let out = tmp + '.' + ext2
       await fs.promises.writeFile(tmp, buffer)
       
-      // Use ffmpeg-static for the ffmpeg binary
-      const ffmpegPath = require('ffmpeg-static');
       spawn(ffmpegPath, [
         '-y',
         '-i', tmp,
