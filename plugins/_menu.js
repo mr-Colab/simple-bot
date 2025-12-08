@@ -74,79 +74,45 @@ Sparky({
         const menuType = config.MENU_TYPE ? config.MENU_TYPE.toLowerCase() : 'button';
 
         if (menuType === 'button' || menuType === 'interactive') {
-            // Interactive button menu logic - using pair.js style
+            // Interactive button menu logic - pair.js style
             let categories = [];
-            let categorizedCommands = {};
-            
             commands.forEach((command) => {
                 if (!command.dontAddCommandList && command.category) {
                     const category = command.category.toLowerCase();
                     if (!categories.includes(category)) {
                         categories.push(category);
-                        categorizedCommands[category] = [];
-                    }
-                    
-                    // Get command name
-                    if (command.name) {
-                        let cmdName = command.name.source.split('\\s*')[1].toString().match(/(\W*)([A-Za-züşiğ öç1234567890|]*)/)[2];
-                        if (cmdName) {
-                            categorizedCommands[category].push(cmdName);
-                        }
                     }
                 }
             });
             categories.sort();
 
-            // Build sections for interactive menu
-            const sections = [];
-            
-            const categoryInfo = {
-                'downloader': { emoji: '📥', name: 'Download Commands', label: 'Media' },
-                'converters': { emoji: '🔄', name: 'Converter Commands', label: 'Tools' },
-                'misc': { emoji: '🛠️', name: 'Miscellaneous Commands', label: 'Utility' },
-                'group': { emoji: '👥', name: 'Group Commands', label: 'Groups' },
-                'sudo': { emoji: '👑', name: 'Owner Commands', label: 'Admin' },
-                'manage': { emoji: '⚙️', name: 'Management Commands', label: 'Settings' }
-            };
-
-            categories.forEach((cat) => {
-                const info = categoryInfo[cat] || { 
-                    emoji: '📂', 
-                    name: cat.charAt(0).toUpperCase() + cat.slice(1) + ' Commands',
-                    label: cat.charAt(0).toUpperCase() + cat.slice(1)
+            const categoryRows = categories.map((cat) => {
+                const categoryNames = {
+                    'downloader': { emoji: '📥', title: 'ᴅᴏᴡɴʟᴏᴀᴅ ᴍᴇɴᴜ', desc: 'ᴍᴇᴅɪᴀ ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴏᴍᴍᴀɴᴅs' },
+                    'converters': { emoji: '🔄', title: 'ᴄᴏɴᴠᴇʀᴛᴇʀ ᴍᴇɴᴜ', desc: 'ᴍᴇᴅɪᴀ ᴄᴏɴᴠᴇʀsɪᴏɴ ᴄᴏᴍᴍᴀɴᴅs' },
+                    'misc': { emoji: '🛠️', title: 'ᴍɪsᴄᴇʟʟᴀɴᴇᴏᴜs ᴍᴇɴᴜ', desc: 'ᴜᴛɪʟɪᴛʏ ᴀɴᴅ ᴛᴏᴏʟ ᴄᴏᴍᴍᴀɴᴅs' },
+                    'group': { emoji: '👥', title: 'ɢʀᴏᴜᴘ ᴍᴇɴᴜ', desc: 'ɢʀᴏᴜᴘ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ ᴄᴏᴍᴍᴀɴᴅs' },
+                    'sudo': { emoji: '👑', title: 'ᴏᴡɴᴇʀ ᴍᴇɴᴜ', desc: 'ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅs' },
+                    'manage': { emoji: '⚙️', title: 'ᴍᴀɴᴀɢᴇᴍᴇɴᴛ ᴍᴇɴᴜ', desc: 'ʙᴏᴛ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ ᴄᴏᴍᴍᴀɴᴅs' }
                 };
 
-                const rows = [];
-                const cmds = categorizedCommands[cat] || [];
-                
-                cmds.forEach((cmd, index) => {
-                    if (index < 10) { // Limit to 10 commands per category in dropdown
-                        rows.push({
-                            title: `${m.prefix}${cmd}`,
-                            description: `Execute ${cmd} command`,
-                            id: `${m.prefix}${cmd}`
-                        });
-                    }
-                });
+                const catInfo = categoryNames[cat] || { 
+                    emoji: '📂', 
+                    title: cat.charAt(0).toUpperCase() + cat.slice(1) + ' ᴍᴇɴᴜ',
+                    desc: cat.charAt(0).toUpperCase() + cat.slice(1) + ' ᴄᴏᴍᴍᴀɴᴅs'
+                };
 
-                if (rows.length > 0) {
-                    sections.push({
-                        title: `${info.emoji} ${info.name}`,
-                        highlight_label: info.label,
-                        rows: rows
-                    });
-                }
+                return {
+                    title: `${catInfo.emoji} ${catInfo.title}`,
+                    description: catInfo.desc,
+                    id: `${m.prefix}listcmd ${cat}`
+                };
             });
 
-            // Add "View All Commands" section
-            sections.unshift({
-                title: '📋 Quick Access',
-                highlight_label: 'Main Menu',
-                rows: [
-                    { title: '📜 All Commands', description: 'View complete command list', id: `${m.prefix}allcmds` },
-                    { title: '🔍 Command List', description: 'List commands by category', id: `${m.prefix}list` },
-                    { title: '📊 Bot Stats', description: 'View bot statistics', id: `${m.prefix}ping` }
-                ]
+            categoryRows.unshift({
+                title: '📜 ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅs',
+                description: 'ᴠɪᴇᴡ ᴄᴏᴍᴘʟᴇᴛᴇ ᴄᴏᴍᴍᴀɴᴅ ʟɪsᴛ',
+                id: `${m.prefix}allcmds`
             });
 
             const menuMessage = {
@@ -165,22 +131,26 @@ Sparky({
 ┃╰━━━━━━━━━━━━━◉
 ╰━━━━━━━━━━━━━>
 
-> 📂 ᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ᴛᴏ ᴇxᴘʟᴏʀᴇ ᴄᴏᴍᴍᴀɴᴅs`,
+> 📂 sᴇʟᴇᴄᴛ ᴀ ᴄᴀᴛᴇɢᴏʀʏ ғʀᴏᴍ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ`,
                 buttons: [
                     {
                         buttonId: `${m.prefix}menu_action`,
-                        buttonText: { displayText: '📂 ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴs' },
+                        buttonText: { displayText: '📂 ᴍᴇɴᴜ ᴄᴀᴛᴇɢᴏʀɪᴇs' },
                         type: 4,
                         nativeFlowInfo: {
                             name: 'single_select',
                             paramsJson: JSON.stringify({
-                                title: `ᴄʟɪᴄᴋ ʜᴇʀᴇ ❏`,
-                                sections: sections
+                                title: 'ᴄʟɪᴄᴋ ʜᴇʀᴇ ❏',
+                                sections: [
+                                    {
+                                        title: `${config.BOT_INFO.split(";")[0]} ᴍᴇɴᴜ`,
+                                        highlight_label: 'ᴍᴀɪɴ ᴍᴇɴᴜ',
+                                        rows: categoryRows
+                                    }
+                                ]
                             })
                         }
-                    },
-                    { buttonId: `${m.prefix}allcmds`, buttonText: { displayText: 'ℹ️ ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅs' }, type: 1 },
-                    { buttonId: `${m.prefix}ping`, buttonText: { displayText: '📈 ʙᴏᴛ sᴛᴀᴛs' }, type: 1 }
+                    }
                 ],
                 headerType: 1,
                 viewOnce: true
