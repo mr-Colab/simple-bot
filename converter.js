@@ -5,10 +5,19 @@ const { spawn } = require('child_process')
 function ffmpeg(buffer, args = [], ext = '', ext2 = '') {
   return new Promise(async (resolve, reject) => {
     try {
-      let tmp = path.join(__dirname, '../data/assets/audio', + new Date + '.' + ext)
+      // Create temp directory if it doesn't exist
+      const tempDir = path.join(__dirname, 'data', 'assets', 'audio');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      
+      let tmp = path.join(tempDir, new Date().getTime() + '.' + ext)
       let out = tmp + '.' + ext2
       await fs.promises.writeFile(tmp, buffer)
-      spawn('ffmpeg', [
+      
+      // Use ffmpeg-static for the ffmpeg binary
+      const ffmpegPath = require('ffmpeg-static');
+      spawn(ffmpegPath, [
         '-y',
         '-i', tmp,
         ...args,
