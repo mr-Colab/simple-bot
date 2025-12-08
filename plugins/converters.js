@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
+const { toPTT, toAudio, toVideo } = require('../converter');
 
 // Load ffmpeg-static for bundled ffmpeg binary
 let ffmpegPath = 'ffmpeg'; // fallback to system ffmpeg
@@ -253,8 +254,6 @@ Sparky({
     desc: "Convert audio/video to voice note",
     category: "converters",
 }, async ({ client, m, args }) => {
-    let tempInput = null;
-    let tempOutput = null;
     try {
         if (!m.quoted) {
             return m.reply('*❌ Please reply to a video or audio message!*\n\n*Usage:* Reply to a video/audio with `.tovn`');
@@ -272,30 +271,15 @@ Sparky({
         // Download the media
         const mediaBuffer = await m.quoted.download();
 
-        // Use os.tmpdir() for temp files to avoid permission issues
-        tempInput = path.join(os.tmpdir(), `tovn_input_${Date.now()}.${quotedType.includes('video') ? 'mp4' : 'mp3'}`);
-        tempOutput = path.join(os.tmpdir(), `tovn_output_${Date.now()}.ogg`);
+        // Determine file extension based on media type
+        const ext = quotedType.includes('video') || quotedType.includes('Video') ? 'mp4' : 'mp3';
 
-        fs.writeFileSync(tempInput, mediaBuffer);
-
-        // Use ffmpeg-static or system ffmpeg to convert to voice note
-        await new Promise((resolve, reject) => {
-            const ffmpegCmd = `"${ffmpegPath}" -i "${tempInput}" -vn -acodec libopus -b:a 64k -ac 1 "${tempOutput}" -y`;
-            exec(ffmpegCmd, (error, stdout, stderr) => {
-                if (error) {
-                    console.error('FFmpeg stderr:', stderr);
-                    reject(new Error('FFmpeg conversion failed'));
-                } else {
-                    resolve();
-                }
-            });
-        });
-
-        const voiceBuffer = fs.readFileSync(tempOutput);
+        // Use converter.js toPTT function
+        const audio = await toPTT(mediaBuffer, ext);
 
         await client.sendMessage(m.jid, {
-            audio: voiceBuffer,
-            mimetype: 'audio/ogg; codecs=opus',
+            audio: audio,
+            mimetype: 'audio/mpeg',
             ptt: true
         }, { quoted: m });
 
@@ -308,14 +292,6 @@ Sparky({
         errorMessage += `*Error:* ${error.message || 'Unknown error'}\n\nMake sure you replied to a video or audio message.`;
         
         await m.reply(errorMessage);
-    } finally {
-        // Clean up temp files
-        try {
-            if (tempInput && fs.existsSync(tempInput)) fs.unlinkSync(tempInput);
-            if (tempOutput && fs.existsSync(tempOutput)) fs.unlinkSync(tempOutput);
-        } catch (cleanupError) {
-            console.error('Failed to clean up temp files:', cleanupError);
-        }
     }
 });
 
@@ -326,8 +302,6 @@ Sparky({
     desc: "Convert video to audio",
     category: "converters",
 }, async ({ client, m, args }) => {
-    let tempInput = null;
-    let tempOutput = null;
     try {
         if (!m.quoted) {
             return m.reply('*❌ Please reply to a video message!*\n\n*Usage:* Reply to a video with `.toaudio`');
@@ -345,32 +319,12 @@ Sparky({
         // Download the video
         const mediaBuffer = await m.quoted.download();
         
-        // Create temp files
-        tempInput = path.join(os.tmpdir(), `toaudio_input_${Date.now()}.mp4`);
-        tempOutput = path.join(os.tmpdir(), `toaudio_output_${Date.now()}.mp3`);
-        
-        // Write input file
-        fs.writeFileSync(tempInput, mediaBuffer);
-        
-        // Convert to mp3 using ffmpeg
-        await new Promise((resolve, reject) => {
-            const ffmpegCmd = `"${ffmpegPath}" -i "${tempInput}" -vn -acodec libmp3lame -b:a 128k "${tempOutput}" -y`;
-            exec(ffmpegCmd, (error, stdout, stderr) => {
-                if (error) {
-                    console.error('FFmpeg stderr:', stderr);
-                    reject(new Error('FFmpeg conversion failed'));
-                } else {
-                    resolve();
-                }
-            });
-        });
-        
-        // Read converted file
-        const audioBuffer = fs.readFileSync(tempOutput);
+        // Use converter.js toAudio function
+        const audio = await toAudio(mediaBuffer, 'mp4');
         
         // Send as audio
         await client.sendMessage(m.jid, {
-            audio: audioBuffer,
+            audio: audio,
             mimetype: 'audio/mpeg'
         }, {
             quoted: m
@@ -381,14 +335,6 @@ Sparky({
         console.error('toaudio error:', error);
         await m.react('❌');
         m.reply('*❌ Failed to convert to audio!*\n\n*Error:* ' + error.message);
-    } finally {
-        // Clean up temp files
-        try {
-            if (tempInput && fs.existsSync(tempInput)) fs.unlinkSync(tempInput);
-            if (tempOutput && fs.existsSync(tempOutput)) fs.unlinkSync(tempOutput);
-        } catch (cleanupError) {
-            console.error('Failed to clean up temp files:', cleanupError);
-        }
     }
 });
 

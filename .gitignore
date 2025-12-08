@@ -138,6 +138,9 @@ dist
 lib/session/
 lib/sessions/
 
+# Temporary audio/video conversion files
+data/assets/audio/
+
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
