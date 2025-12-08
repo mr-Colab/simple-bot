@@ -55,6 +55,24 @@ async function updateCachedSetting(jid, key, value) {
     return result;
 }
 
+/**
+ * Refresh user cache from database
+ * @param {string} jid - User JID
+ */
+async function refreshUserCache(jid) {
+    const settings = await getUserSettings(jid);
+    if (settings) {
+        userSettingsCache.set(jid, {
+            auto_status_view: settings.auto_status_view,
+            status_reaction: settings.status_reaction,
+            auto_recording: settings.auto_recording,
+            auto_typing: settings.auto_typing,
+            work_type: settings.work_type,
+            sudo_list: settings.sudo_list
+        });
+    }
+}
+
 // Settings command - shows all settings menu
 Sparky({
     name: "settings",
@@ -194,11 +212,13 @@ Sparky({
             // Update global config for immediate effect
             config.AUTO_TYPING = newValue;
             // If typing is on, recording should be off
+            let message = `_Auto Typing ${newValue ? 'enabled ✅' : 'disabled ❌'}_`;
             if (newValue) {
                 config.AUTO_RECORDING = false;
                 await updateCachedSetting(userJid, 'auto_recording', false);
+                message += '\n_Auto Recording has been disabled automatically._';
             }
-            return m.reply(`_Auto Typing ${newValue ? 'enabled ✅' : 'disabled ❌'}_`);
+            return m.reply(message);
         }
         return m.reply('_Failed to update setting_');
     } catch (e) {
@@ -230,11 +250,13 @@ Sparky({
             // Update global config for immediate effect
             config.AUTO_RECORDING = newValue;
             // If recording is on, typing should be off
+            let message = `_Auto Recording ${newValue ? 'enabled ✅' : 'disabled ❌'}_`;
             if (newValue) {
                 config.AUTO_TYPING = false;
                 await updateCachedSetting(userJid, 'auto_typing', false);
+                message += '\n_Auto Typing has been disabled automatically._';
             }
-            return m.reply(`_Auto Recording ${newValue ? 'enabled ✅' : 'disabled ❌'}_`);
+            return m.reply(message);
         }
         return m.reply('_Failed to update setting_');
     } catch (e) {
@@ -290,7 +312,7 @@ Sparky({
                       (args ? args.trim() : "");
 
         if (!newSudo) {
-            return m.reply("*Add Sudo User*\n\n_Reply to a message, mention someone, or provide a phone number_\n_Example: ${m.prefix}setsudo 1234567890_");
+            return m.reply(`*Add Sudo User*\n\n_Reply to a message, mention someone, or provide a phone number_\n_Example: ${m.prefix}setsudo 1234567890_`);
         }
 
         // Clean the number
@@ -311,17 +333,7 @@ Sparky({
             }
             
             // Refresh cache
-            const settings = await getUserSettings(userJid);
-            if (settings) {
-                userSettingsCache.set(userJid, {
-                    auto_status_view: settings.auto_status_view,
-                    status_reaction: settings.status_reaction,
-                    auto_recording: settings.auto_recording,
-                    auto_typing: settings.auto_typing,
-                    work_type: settings.work_type,
-                    sudo_list: settings.sudo_list
-                });
-            }
+            await refreshUserCache(userJid);
             
             return client.sendMessage(m.jid, {
                 text: `_Added @${newSudo} as sudo ✅_`,
@@ -352,7 +364,7 @@ Sparky({
                       (args ? args.trim() : "");
 
         if (!delSudo) {
-            return m.reply("*Remove Sudo User*\n\n_Reply to a message, mention someone, or provide a phone number_\n_Example: ${m.prefix}delsudo 1234567890_");
+            return m.reply(`*Remove Sudo User*\n\n_Reply to a message, mention someone, or provide a phone number_\n_Example: ${m.prefix}delsudo 1234567890_`);
         }
 
         // Clean the number
@@ -371,17 +383,7 @@ Sparky({
             config.SUDO = sudoList.join(",");
             
             // Refresh cache
-            const settings = await getUserSettings(userJid);
-            if (settings) {
-                userSettingsCache.set(userJid, {
-                    auto_status_view: settings.auto_status_view,
-                    status_reaction: settings.status_reaction,
-                    auto_recording: settings.auto_recording,
-                    auto_typing: settings.auto_typing,
-                    work_type: settings.work_type,
-                    sudo_list: settings.sudo_list
-                });
-            }
+            await refreshUserCache(userJid);
             
             return client.sendMessage(m.jid, {
                 text: `_Removed @${delSudo} from sudo ✅_`,

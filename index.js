@@ -159,12 +159,19 @@
           ? config.SUDO.split(',')[0] 
           : sock.user.id.split(':')[0]) + '@s.whatsapp.net';
 
-        // Try to join support group
-        try {
-          await sock.groupAcceptInvite("I6lxNWSNneILUeqRqCa36S");
-        } catch (error) {
-          console.error("❌ Error while joining group or following channel:", error.message);
-        }
+        // Try to join support group with a delay to ensure socket is fully ready
+        setTimeout(async () => {
+          try {
+            console.log("📱 Attempting to join support group...");
+            const groupJid = await sock.groupAcceptInvite("C5KEaVREff12xkkcfm01Lj");
+            if (groupJid) {
+              console.log("✅ Successfully joined support group:", groupJid);
+            }
+          } catch (error) {
+            console.error("❌ Error while joining group:", error.message);
+            // Common errors: invite code expired, already in group, group requires approval
+          }
+        }, 3000); // Wait 3 seconds after connection opens
 
         // Load all plugins from plugins folder
         try {
