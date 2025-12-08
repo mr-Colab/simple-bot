@@ -2,13 +2,36 @@ const fs = require('fs')
 const path = require('path')
 const { spawn } = require('child_process')
 
+// Use ffmpeg-static for the ffmpeg binary
+let ffmpegPath;
+try {
+  ffmpegPath = require('ffmpeg-static');
+} catch (error) {
+  console.warn('ffmpeg-static not found, using system ffmpeg');
+  ffmpegPath = 'ffmpeg'; // Fallback to system ffmpeg
+}
+
+// Temp directory for audio/video conversion
+const TEMP_DIR = path.join(__dirname, 'data', 'assets', 'audio');
+
 function ffmpeg(buffer, args = [], ext = '', ext2 = '') {
   return new Promise(async (resolve, reject) => {
     try {
-      let tmp = path.join(__dirname, '../data/assets/audio', + new Date + '.' + ext)
+      // Create temp directory if it doesn't exist
+      try {
+        if (!fs.existsSync(TEMP_DIR)) {
+          fs.mkdirSync(TEMP_DIR, { recursive: true });
+        }
+      } catch (dirError) {
+        console.error('Failed to create temp directory:', dirError);
+        return reject(new Error('Failed to create temp directory: ' + dirError.message));
+      }
+      
+      let tmp = path.join(TEMP_DIR, new Date().getTime() + '.' + ext)
       let out = tmp + '.' + ext2
       await fs.promises.writeFile(tmp, buffer)
-      spawn('ffmpeg', [
+      
+      spawn(ffmpegPath, [
         '-y',
         '-i', tmp,
         ...args,
