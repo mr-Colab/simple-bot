@@ -1,5 +1,5 @@
 /**
- * X-BOT-MD Multi-User Mode
+ * LD7 V1 Multi-User Mode
  * Allows multiple users to run their own WhatsApp bot instances
  * 
  * Usage: node multi.js
@@ -29,7 +29,7 @@ let platform = process.env.REPLIT_USER ? "REPLIT"
   : 'VPS';
 
 console.log("╔════════════════════════════════════════╗");
-console.log("║     X-BOT-MD MULTI-USER MODE          ║");
+console.log("║     LD7 V1 MULTI-USER MODE          ║");
 console.log("╠════════════════════════════════════════╣");
 console.log("║  Running on platform:", platform.padEnd(17), "║");
 console.log("║  Port:", String(PORT).padEnd(30), "║");
@@ -160,7 +160,7 @@ server.listen(PORT, async () => {
   await autoStartSessions();
 
   console.log("═".repeat(50));
-  console.log("🚀 X-BOT-MD Multi-User is ready!");
+  console.log("🚀 LD7 V1 Multi-User is ready!");
   console.log("═".repeat(50));
 });
 

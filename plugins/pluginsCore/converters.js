@@ -163,7 +163,7 @@ async function convertToMp3(buffer) {
 
 
 async function appendMp3Data(audioBuffer, coverBuffer, options = {
-	title: `X-BOT-MD`,
+	title: `LD7 V1`,
 	artist: ""
 }) {
 	const writer = new ID3Writer(await convertToMp3(audioBuffer));
@@ -175,7 +175,7 @@ async function appendMp3Data(audioBuffer, coverBuffer, options = {
 		.setFrame("APIC", {
                        type: 3,
                        data: Buffer.isBuffer(coverBuffer) ? coverBuffer : await getBuffer(coverBuffer),
-		       description: "X-BOT-MD",
+		       description: "LD7 V1",
                 });
 	writer.addTag();
 	return Buffer.from(writer.arrayBuffer);

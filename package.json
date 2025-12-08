@@ -1,15 +1,15 @@
 {
-  "name": "X-BOT-MD",
+  "name": "LD7-V1",
   "version": "3.5.5",
-  "description": "X-BOT-MD is a powerful WhatsApp Helper Bot packed with features like media handling, automation, and more.",
+  "description": "LD7 V1 is a powerful WhatsApp Helper Bot packed with features like media handling, automation, and more.",
   "main": "index.js",
   "scripts": {
-    "start": "pm2 start . --attach --name X-BOT-MD",
-    "stop": "pm2 stop . --attach --name X-BOT-MD",
+    "start": "pm2 start . --attach --name LD7-V1",
+    "stop": "pm2 stop . --attach --name LD7-V1",
     "multi": "node multi.js",
-    "multi:pm2": "pm2 start multi.js --name X-BOT-MULTI"
+    "multi:pm2": "pm2 start multi.js --name LD7-V1-MULTI"
   },
-  "author": "ASWIN SPARKY",
+  "author": "Shizzy andy",
   "license": "ISC",
   "repository": {
     "type": "git",
