@@ -56,7 +56,7 @@ Sparky({
 
         // Get date and time
         let [date, time] = new Date().toLocaleString("en-IN", {
-            timeZone: "Asia/Kolkata"
+            timeZone: "America/New_York"
         }).split(",");
 
         // Get uptime
