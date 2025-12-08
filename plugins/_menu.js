@@ -74,48 +74,82 @@ Sparky({
         const menuType = config.MENU_TYPE ? config.MENU_TYPE.toLowerCase() : 'button';
 
         if (menuType === 'button' || menuType === 'interactive') {
-            // Interactive button menu logic
+            // Interactive button menu logic - using pair.js style
             let categories = [];
+            let categorizedCommands = {};
+            
             commands.forEach((command) => {
                 if (!command.dontAddCommandList && command.category) {
                     const category = command.category.toLowerCase();
                     if (!categories.includes(category)) {
                         categories.push(category);
+                        categorizedCommands[category] = [];
+                    }
+                    
+                    // Get command name
+                    if (command.name) {
+                        let cmdName = command.name.source.split('\\s*')[1].toString().match(/(\W*)([A-Za-züşiğ öç1234567890|]*)/)[2];
+                        if (cmdName) {
+                            categorizedCommands[category].push(cmdName);
+                        }
                     }
                 }
             });
             categories.sort();
 
-            const categoryRows = categories.map((cat) => {
-                const categoryNames = {
-                    'downloader': { emoji: '📥', title: 'Download Menu', desc: 'Media download commands' },
-                    'converters': { emoji: '🔄', title: 'Converter Menu', desc: 'Media conversion commands' },
-                    'misc': { emoji: '🛠️', title: 'Miscellaneous Menu', desc: 'Utility and tool commands' },
-                    'group': { emoji: '👥', title: 'Group Menu', desc: 'Group management commands' },
-                    'sudo': { emoji: '👑', title: 'Owner Menu', desc: 'Bot owner commands' },
-                    'manage': { emoji: '⚙️', title: 'Management Menu', desc: 'Bot management commands' }
-                };
+            // Build sections for interactive menu
+            const sections = [];
+            
+            const categoryInfo = {
+                'downloader': { emoji: '📥', name: 'Download Commands', label: 'Media' },
+                'converters': { emoji: '🔄', name: 'Converter Commands', label: 'Tools' },
+                'misc': { emoji: '🛠️', name: 'Miscellaneous Commands', label: 'Utility' },
+                'group': { emoji: '👥', name: 'Group Commands', label: 'Groups' },
+                'sudo': { emoji: '👑', name: 'Owner Commands', label: 'Admin' },
+                'manage': { emoji: '⚙️', name: 'Management Commands', label: 'Settings' }
+            };
 
-                const catInfo = categoryNames[cat] || { 
+            categories.forEach((cat) => {
+                const info = categoryInfo[cat] || { 
                     emoji: '📂', 
-                    title: cat.charAt(0).toUpperCase() + cat.slice(1) + ' Menu',
-                    desc: cat.charAt(0).toUpperCase() + cat.slice(1) + ' commands'
+                    name: cat.charAt(0).toUpperCase() + cat.slice(1) + ' Commands',
+                    label: cat.charAt(0).toUpperCase() + cat.slice(1)
                 };
 
-                return {
-                    title: `${catInfo.emoji} ${catInfo.title}`,
-                    description: catInfo.desc,
-                    id: `${m.prefix}listcmd ${cat}`
-                };
+                const rows = [];
+                const cmds = categorizedCommands[cat] || [];
+                
+                cmds.forEach((cmd, index) => {
+                    if (index < 10) { // Limit to 10 commands per category in dropdown
+                        rows.push({
+                            title: `${m.prefix}${cmd}`,
+                            description: `Execute ${cmd} command`,
+                            id: `${m.prefix}${cmd}`
+                        });
+                    }
+                });
+
+                if (rows.length > 0) {
+                    sections.push({
+                        title: `${info.emoji} ${info.name}`,
+                        highlight_label: info.label,
+                        rows: rows
+                    });
+                }
             });
 
-            categoryRows.unshift({
-                title: '📜 All Commands',
-                description: 'View complete command list',
-                id: `${m.prefix}allcmds`
+            // Add "View All Commands" section
+            sections.unshift({
+                title: '📋 Quick Access',
+                highlight_label: 'Main Menu',
+                rows: [
+                    { title: '📜 All Commands', description: 'View complete command list', id: `${m.prefix}allcmds` },
+                    { title: '🔍 Command List', description: 'List commands by category', id: `${m.prefix}list` },
+                    { title: '📊 Bot Stats', description: 'View bot statistics', id: `${m.prefix}ping` }
+                ]
             });
 
-            return await client.sendMessage(m.jid, {
+            const menuMessage = {
                 image: { url: config.BOT_INFO.split(";")[2] || "https://i.imgur.com/Q2UNwXR.jpg" },
                 caption: `╭━━━〔 *${config.BOT_INFO.split(";")[0].toLowerCase()}* 〕━━━╮
 ┃╭━━━━━━━━━━━━━◉
@@ -131,31 +165,28 @@ Sparky({
 ┃╰━━━━━━━━━━━━━◉
 ╰━━━━━━━━━━━━━>
 
-*Select a category from the button below:*`,
+> 📂 ᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ᴛᴏ ᴇxᴘʟᴏʀᴇ ᴄᴏᴍᴍᴀɴᴅs`,
                 buttons: [
                     {
-                        buttonId: 'menu_categories',
-                        buttonText: {
-                            displayText: '📂 Select Menu Category'
-                        },
+                        buttonId: `${m.prefix}menu_action`,
+                        buttonText: { displayText: '📂 ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴs' },
                         type: 4,
                         nativeFlowInfo: {
                             name: 'single_select',
                             paramsJson: JSON.stringify({
-                                title: `${config.BOT_INFO.split(";")[0]} Menu`,
-                                sections: [
-                                    {
-                                        title: '🔍 Choose a Category',
-                                        highlight_label: 'Main Menu',
-                                        rows: categoryRows
-                                    }
-                                ]
+                                title: `ᴄʟɪᴄᴋ ʜᴇʀᴇ ❏`,
+                                sections: sections
                             })
                         }
-                    }
+                    },
+                    { buttonId: `${m.prefix}allcmds`, buttonText: { displayText: 'ℹ️ ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅs' }, type: 1 },
+                    { buttonId: `${m.prefix}ping`, buttonText: { displayText: '📈 ʙᴏᴛ sᴛᴀᴛs' }, type: 1 }
                 ],
-                headerType: 1
-            }, { quoted: m });
+                headerType: 1,
+                viewOnce: true
+            };
+
+            return await client.sendMessage(m.jid, menuMessage, { quoted: m });
         }
 
         // For other menu types, build traditional text menu
