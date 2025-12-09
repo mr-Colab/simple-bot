@@ -5,6 +5,14 @@ const config = require('../config.js');
 const lang = getString('converters');
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const { toPTT, toAudio, toVideo } = require('../converter');
+const axios = require('axios');
+
+const SUNO_API_URL = 'https://anabot.my.id/api/ai/suno';
+const SUNO_API_KEY = process.env.SUNO_API_KEY || 'freeApikey';
+const LYRICS_PREVIEW_LIMIT = 50;
+const escapeMarkdown = (value = "") => value
+    .replace(/\\/g, "\\\\")
+    .replace(/[*_`~]/g, "\\$&");
 
 Sparky({
     name: "url",
@@ -391,5 +399,81 @@ Sparky({
         errorMessage += '3. Bot has permission to send messages to the channel';
         
         await m.reply(errorMessage);
+    }
+});
+
+Sparky({
+    name: "iasong",
+    fromMe: isPublic,
+    category: "converters",
+    desc: "Generate a song from a title, style, and lyrics"
+},
+async ({
+    m,
+    args
+}) => {
+    const usage = "❌ Invalid format.\nExample: iasong MyTitle | Pop, Rock | Here are my lyrics...";
+    if (!args) return await m.reply(usage);
+    
+    const parts = args.split("|").map((p) => p.trim());
+    if (parts.length < 3 || !parts[0] || !parts[1] || !parts[2]) {
+        return await m.reply(usage);
+    }
+    
+    const [title, style] = parts;
+    const lyrics = parts.slice(2).join(" | ").trim();
+    const safeTitle = escapeMarkdown(title);
+    const safeStyle = escapeMarkdown(style);
+    const safeLyrics = escapeMarkdown(lyrics);
+    
+    try {
+        await m.react('⏳');
+        await m.sendMsg(m.jid, `🎶 Generating song...\nTitle: *${safeTitle}*\nStyle: *${safeStyle}*`, {
+            quoted: m
+        });
+        
+        const { data } = await axios.get(SUNO_API_URL, {
+            params: {
+                title,
+                lyrics,
+                instrumen: "no",
+                style,
+                apikey: SUNO_API_KEY
+            }
+        });
+        
+        const song = data?.data?.result?.[0];
+        if (!data?.success || !song) {
+            await m.react('❌');
+            return await m.reply(`❌ API error: ${data?.message || "Invalid response"}`);
+        }
+        
+        const audioUrl = song.audio_url;
+        if (!audioUrl) {
+            await m.react('❌');
+            return await m.reply("❌ Missing audio URL in the response.");
+        }
+        
+        let audioData;
+        try {
+            audioData = await getBuffer(audioUrl);
+        } catch (downloadErr) {
+            console.error("IASONG AUDIO DOWNLOAD ERROR:", downloadErr);
+            await m.react('❌');
+            return await m.reply("❌ Failed to download the generated audio.");
+        }
+        
+        await m.sendMsg(m.jid, audioData, {
+            mimetype: "audio/mpeg",
+            fileName: `${safeTitle}.mp3`,
+            quoted: m
+        }, "audio");
+        
+        await m.react('✅');
+        await m.reply(`✅ *${safeTitle}*\nStyle: ${safeStyle}\nLyrics: ${safeLyrics.substring(0, LYRICS_PREVIEW_LIMIT)}${safeLyrics.length > LYRICS_PREVIEW_LIMIT ? "..." : ""}`);
+    } catch (error) {
+        console.error("IASONG ERROR:", error);
+        await m.react('❌');
+        await m.reply("❌ Failed to generate the song.");
     }
 });
