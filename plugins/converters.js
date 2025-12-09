@@ -460,7 +460,7 @@ Sparky({
 				await m.react('❌');
 				return await m.reply("❌ Failed to download the generated audio.");
 			}
-			const audioBuffer = Buffer.from(audioData);
+			const audioBuffer = Buffer.isBuffer(audioData) ? audioData : Buffer.from(audioData);
 			
 			await m.sendMsg(m.jid, audioBuffer, {
 				mimetype: "audio/mpeg",
