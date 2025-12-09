@@ -286,29 +286,32 @@ Sparky({
 Sparky({
     name: "toaudio|tomp3",
     fromMe: isPublic,
-    desc: "Convert video to audio",
+    desc: "Convert video/voice note to audio",
     category: "converters",
 }, async ({ client, m, args }) => {
     try {
         if (!m.quoted) {
-            return m.reply('*❌ Please reply to a video message!*\n\n*Usage:* Reply to a video with `.toaudio`');
+            return m.reply('*❌ Please reply to a video or audio message!*\n\n*Usage:* Reply to a video/audio with `.toaudio`');
         }
         
-        // Check if quoted message has video
+        // Check if quoted message has video or audio
         const quotedType = Array.isArray(m.quoted.mtype) ? m.quoted.mtype[0] : String(m.quoted.mtype || '');
         const quotedTypeLower = quotedType.toLowerCase();
         
-        if (!quotedTypeLower.includes('video')) {
-            return m.reply('*❌ Please reply to a video message!*\n\n*Usage:* Reply to a video with `.toaudio`');
+        if (!quotedTypeLower.includes('video') && !quotedTypeLower.includes('audio')) {
+            return m.reply('*❌ Please reply to a video or audio message!*\n\n*Usage:* Reply to a video/audio with `.toaudio`');
         }
         
         await m.react('⏳');
         
-        // Download the video
+        // Download the media
         const mediaBuffer = await m.quoted.download();
         
+        // Determine file extension based on media type
+        const ext = quotedTypeLower.includes('video') ? 'mp4' : 'mp3';
+        
         // Use converter.js toAudio function
-        const audio = await toAudio(mediaBuffer, 'mp4');
+        const audio = await toAudio(mediaBuffer, ext);
         
         // Send as audio
         await client.sendMessage(m.jid, {
