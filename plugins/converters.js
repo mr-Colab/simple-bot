@@ -9,6 +9,7 @@ const axios = require('axios');
 
 const SUNO_API_URL = 'https://anabot.my.id/api/ai/suno';
 const SUNO_API_KEY = process.env.SUNO_API_KEY || 'freeApikey';
+const LYRICS_PREVIEW_LIMIT = 50;
 
 Sparky({
     name: "url",
@@ -460,7 +461,7 @@ Sparky({
 				await m.react('❌');
 				return await m.reply("❌ Failed to download the generated audio.");
 			}
-			const audioBuffer = Buffer.isBuffer(audioData) ? audioData : Buffer.from(audioData);
+			const audioBuffer = audioData;
 			
 			await m.sendMsg(m.jid, audioBuffer, {
 				mimetype: "audio/mpeg",
@@ -469,7 +470,7 @@ Sparky({
 			}, "audio");
 			
 			await m.react('✅');
-			await m.reply(`✅ *${title}*\nStyle: ${style}\nLyrics: ${lyrics.substring(0, 50)}${lyrics.length > 50 ? "..." : ""}`);
+			await m.reply(`✅ *${title}*\nStyle: ${style}\nLyrics: ${lyrics.substring(0, LYRICS_PREVIEW_LIMIT)}${lyrics.length > LYRICS_PREVIEW_LIMIT ? "..." : ""}`);
 		} catch (error) {
 			console.error("IASONG ERROR:", error);
 			await m.react('❌');
