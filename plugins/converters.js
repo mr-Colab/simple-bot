@@ -408,7 +408,7 @@ Sparky({
 		m,
 		args
 	}) => {
-		const usage = "❌ Format invalide.\nExemple: iasong MonTitre | Pop, Rock | Voici mes paroles...";
+		const usage = "❌ Invalid format.\nExample: iasong MyTitle | Pop, Rock | Here are my lyrics...";
 		if (!args) return await m.reply(usage);
 		
 		const parts = args.split("|").map((p) => p.trim());
@@ -421,7 +421,7 @@ Sparky({
 		
 		try {
 			await m.react('⏳');
-			await m.sendMsg(m.jid, `🎶 Génération en cours...\nTitre: *${title}*\nStyle: *${style}*`, {
+			await m.sendMsg(m.jid, `🎶 Generating song...\nTitle: *${title}*\nStyle: *${style}*`, {
 				quoted: m
 			});
 			
@@ -440,29 +440,27 @@ Sparky({
 			const song = data?.data?.result?.[0];
 			if (!data?.success || !song) {
 				await m.react('❌');
-				return await m.reply(`❌ Erreur API: ${data?.message || "Réponse invalide"}`);
+				return await m.reply(`❌ API error: ${data?.message || "Invalid response"}`);
 			}
 			
 			const audioUrl = song.audio_url;
 			if (!audioUrl) {
 				await m.react('❌');
-				return await m.reply("❌ Audio URL manquant dans la réponse.");
+				return await m.reply("❌ Missing audio URL in the response.");
 			}
 			
-			const audioResponse = await axios.get(audioUrl, {
+			const audioData = await getBuffer(audioUrl, {
 				responseType: "arraybuffer"
 			}).catch((error) => {
 				console.error("IASONG AUDIO DOWNLOAD ERROR:", error);
-				return {
-					data: null
-				};
+				return null;
 			});
 			
-			if (!audioResponse?.data) {
+			if (!audioData) {
 				await m.react('❌');
-				return await m.reply("❌ Impossible de télécharger l'audio généré.");
+				return await m.reply("❌ Failed to download the generated audio.");
 			}
-			const audioBuffer = Buffer.from(audioResponse.data);
+			const audioBuffer = Buffer.from(audioData);
 			
 			await m.sendMsg(m.jid, audioBuffer, {
 				mimetype: "audio/mpeg",
@@ -475,6 +473,6 @@ Sparky({
 		} catch (error) {
 			console.error("IASONG ERROR:", error);
 			await m.react('❌');
-			await m.reply("❌ Échec de génération de la chanson.");
+			await m.reply("❌ Failed to generate the song.");
 		}
 	});
