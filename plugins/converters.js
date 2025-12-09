@@ -452,7 +452,14 @@ async ({
             return await m.reply("❌ Missing audio URL in the response.");
         }
         
-        const audioData = await getBuffer(audioUrl);
+        let audioData;
+        try {
+            audioData = await getBuffer(audioUrl);
+        } catch (downloadErr) {
+            console.error("IASONG AUDIO DOWNLOAD ERROR:", downloadErr);
+            await m.react('❌');
+            return await m.reply("❌ Failed to download the generated audio.");
+        }
         
         await m.sendMsg(m.jid, audioData, {
             mimetype: "audio/mpeg",
