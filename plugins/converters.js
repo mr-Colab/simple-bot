@@ -426,9 +426,7 @@ Sparky({
 				quoted: m
 			});
 			
-			const {
-				data
-			} = await axios.get(SUNO_API_URL, {
+			const { data } = await axios.get(SUNO_API_URL, {
 				params: {
 					title,
 					lyrics,
@@ -450,9 +448,7 @@ Sparky({
 				return await m.reply("❌ Missing audio URL in the response.");
 			}
 			
-			const audioData = await getBuffer(audioUrl, {
-				responseType: "arraybuffer"
-			}).catch((error) => {
+			const audioData = await getBuffer(audioUrl).catch((error) => {
 				console.error("IASONG AUDIO DOWNLOAD ERROR:", error);
 				return null;
 			});
@@ -461,9 +457,8 @@ Sparky({
 				await m.react('❌');
 				return await m.reply("❌ Failed to download the generated audio.");
 			}
-			const audioBuffer = audioData;
 			
-			await m.sendMsg(m.jid, audioBuffer, {
+			await m.sendMsg(m.jid, audioData, {
 				mimetype: "audio/mpeg",
 				fileName: `${title}.mp3`,
 				quoted: m
