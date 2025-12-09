@@ -3,7 +3,6 @@ const {getString, appendMp3Data, convertToMp3, addExifToWebP, getBuffer, getJson
 const googleTTS = require('google-tts-api');
 const config = require('../config.js');
 const lang = getString('converters');
-const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const { toPTT, toAudio, toVideo } = require('../converter');
 
 Sparky({
