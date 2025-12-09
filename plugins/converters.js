@@ -8,7 +8,7 @@ const { toPTT, toAudio, toVideo } = require('../converter');
 const axios = require('axios');
 
 const SUNO_API_URL = 'https://anabot.my.id/api/ai/suno';
-const SUNO_API_KEY = 'freeApikey';
+const SUNO_API_KEY = process.env.SUNO_API_KEY || 'freeApikey';
 
 Sparky({
     name: "url",
@@ -402,7 +402,7 @@ Sparky({
 		name: "iasong",
 		fromMe: isPublic,
 		category: "converters",
-		desc: "Génère une chanson à partir d'un titre, d'un style et de paroles"
+		desc: "Generate a song from a title, style, and lyrics"
 	},
 	async ({
 		m,
@@ -416,8 +416,8 @@ Sparky({
 			return await m.reply(usage);
 		}
 		
-		const [title, style, ...lyricsParts] = parts;
-		const lyrics = lyricsParts.join(" | ");
+		const [title, style] = parts;
+		const lyrics = parts.slice(2).join(" | ").trim();
 		
 		try {
 			await m.react('⏳');
