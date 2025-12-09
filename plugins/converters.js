@@ -3,13 +3,12 @@ const {getString, appendMp3Data, convertToMp3, addExifToWebP, getBuffer, getJson
 const googleTTS = require('google-tts-api');
 const config = require('../config.js');
 const lang = getString('converters');
-const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const { toPTT, toAudio, toVideo } = require('../converter');
 
 Sparky({
     name: "url",
-    fromMe: true,
-    desc: "",
+    fromMe: isPublic,
+    desc: "Upload media and get URL",
     category: "converters",
   }, async ({ args, m }) => {
     if (!m.quoted) {
@@ -30,7 +29,7 @@ Sparky({
 Sparky(
   {
     name: "trt",
-    fromMe: true,
+    fromMe: isPublic,
     desc: "Translate text to a given language",
     category: "converters",
   },
@@ -50,7 +49,7 @@ Sparky(
 Sparky(
     {
         name: "vv",
-        fromMe: true,
+        fromMe: isPublic,
         category: "converters",
         desc: "Resends the view Once message"
     },
