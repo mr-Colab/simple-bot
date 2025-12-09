@@ -13,19 +13,19 @@ Sparky({
   try {
     // Format expected: .iasong <title> | <style> | <lyrics>
     if (!args) {
-      return await m.reply("❌ Format invalide.\nExemple: .iasong MonTitre | Pop, Rock | Voici mes paroles...");
+      return await m.reply("❌ Invalid format.\nExample: .iasong MyTitle | Pop, Rock | Here are my lyrics...");
     }
 
     const parts = args.split("|").map(p => p.trim());
     
     if (parts.length < 3) {
-      return await m.reply("❌ Format invalide.\nExemple: .iasong MonTitre | Pop, Rock | Voici mes paroles...");
+      return await m.reply("❌ Invalid format.\nExample: .iasong MyTitle | Pop, Rock | Here are my lyrics...");
     }
 
     const [title, style, lyrics] = parts;
 
     await m.react("⏳");
-    await m.reply(`🎶 Génération en cours...\nTitre: *${title}*\nStyle: *${style}*`);
+    await m.reply(`🎶 Generating song...\nTitle: *${title}*\nStyle: *${style}*`);
 
     // API call
     const res = await axios.get(API_URL, {
@@ -41,14 +41,14 @@ Sparky({
     const data = res.data;
     
     if (!data.success || !data.data || !data.data.result || !data.data.result[0]) {
-      return await m.reply("❌ Erreur API: " + (data.message || "Réponse invalide"));
+      return await m.reply("❌ API Error: " + (data.message || "Invalid response"));
     }
 
     const song = data.data.result[0];
     const audioUrl = song.audio_url;
 
     if (!audioUrl) {
-      return await m.reply("❌ Audio URL manquant dans la réponse.");
+      return await m.reply("❌ Audio URL missing in response.");
     }
 
     // Download audio buffer
@@ -70,6 +70,6 @@ Sparky({
   } catch (err) {
     console.error("IASONG ERROR:", err);
     await m.react("❌");
-    await m.reply("❌ Échec de génération de la chanson.");
+    await m.reply("❌ Failed to generate song.");
   }
 });
