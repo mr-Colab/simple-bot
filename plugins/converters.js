@@ -10,7 +10,9 @@ const axios = require('axios');
 const SUNO_API_URL = 'https://anabot.my.id/api/ai/suno';
 const SUNO_API_KEY = process.env.SUNO_API_KEY || 'freeApikey';
 const LYRICS_PREVIEW_LIMIT = 50;
-const escapeMarkdown = (value = "") => value.replace(/[*_`~]/g, "\\$&");
+const escapeMarkdown = (value = "") => value
+    .replace(/\\/g, "\\\\")
+    .replace(/[*_`~]/g, "\\$&");
 
 Sparky({
     name: "url",
