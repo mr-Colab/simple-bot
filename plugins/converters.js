@@ -5,6 +5,10 @@ const config = require('../config.js');
 const lang = getString('converters');
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const { toPTT, toAudio, toVideo } = require('../converter');
+const axios = require('axios');
+
+const SUNO_API_URL = 'https://anabot.my.id/api/ai/suno';
+const SUNO_API_KEY = 'freeApikey';
 
 Sparky({
     name: "url",
@@ -393,3 +397,73 @@ Sparky({
         await m.reply(errorMessage);
     }
 });
+
+Sparky({
+		name: "iasong",
+		fromMe: isPublic,
+		category: "converters",
+		desc: "Génère une chanson à partir d'un titre, d'un style et de paroles"
+	},
+	async ({
+		m,
+		args
+	}) => {
+		const usage = "❌ Format invalide.\nExemple: iasong MonTitre | Pop, Rock | Voici mes paroles...";
+		if (!args) return await m.reply(usage);
+		
+		const parts = args.split("|").map((p) => p.trim());
+		if (parts.length < 3 || !parts[0] || !parts[1] || !parts[2]) {
+			return await m.reply(usage);
+		}
+		
+		const [title, style, ...lyricsParts] = parts;
+		const lyrics = lyricsParts.join(" | ");
+		
+		try {
+			await m.react('⏳');
+			await m.sendMsg(m.jid, `🎶 Génération en cours...\nTitre: *${title}*\nStyle: *${style}*`, {
+				quoted: m
+			});
+			
+			const {
+				data
+			} = await axios.get(SUNO_API_URL, {
+				params: {
+					lyrics,
+					instrumen: "no",
+					style,
+					apikey: SUNO_API_KEY
+				}
+			});
+			
+			const song = data?.data?.result?.[0];
+			if (!data?.success || !song) {
+				await m.react('❌');
+				return await m.reply(`❌ Erreur API: ${data?.message || "Réponse invalide"}`);
+			}
+			
+			const audioUrl = song.audio_url;
+			if (!audioUrl) {
+				await m.react('❌');
+				return await m.reply("❌ Audio URL manquant dans la réponse.");
+			}
+			
+			const audioResponse = await axios.get(audioUrl, {
+				responseType: "arraybuffer"
+			});
+			const audioBuffer = Buffer.from(audioResponse.data);
+			
+			await m.sendMsg(m.jid, audioBuffer, {
+				mimetype: "audio/mpeg",
+				fileName: `${title}.mp3`,
+				quoted: m
+			}, "audio");
+			
+			await m.react('✅');
+			await m.reply(`✅ *${title}*\nStyle: ${style}\nLyrics: ${lyrics.substring(0, 50)}${lyrics.length > 50 ? "..." : ""}`);
+		} catch (error) {
+			console.error("IASONG ERROR:", error);
+			await m.react('❌');
+			await m.reply("❌ Échec de génération de la chanson.");
+		}
+	});
