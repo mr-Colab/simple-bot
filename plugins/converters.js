@@ -429,6 +429,7 @@ Sparky({
 				data
 			} = await axios.get(SUNO_API_URL, {
 				params: {
+					title,
 					lyrics,
 					instrumen: "no",
 					style,
@@ -450,7 +451,17 @@ Sparky({
 			
 			const audioResponse = await axios.get(audioUrl, {
 				responseType: "arraybuffer"
+			}).catch((error) => {
+				console.error("IASONG AUDIO DOWNLOAD ERROR:", error);
+				return {
+					data: null
+				};
 			});
+			
+			if (!audioResponse?.data) {
+				await m.react('❌');
+				return await m.reply("❌ Impossible de télécharger l'audio généré.");
+			}
 			const audioBuffer = Buffer.from(audioResponse.data);
 			
 			await m.sendMsg(m.jid, audioBuffer, {
