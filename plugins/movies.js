@@ -297,7 +297,9 @@ function getMsgId(sentMsg) {
 
 /**
  * Get the quoted message ID from the message context
- * Uses stanzaId (from contextInfo) or key.id as fallback
+ * The message ID can be in different properties depending on the message type:
+ * - stanzaId: The message ID stored in the quoted object (extracted from contextInfo during serialization)
+ * - key.id: Fallback when stanzaId is not available
  * @param {Object} quoted - The quoted message object
  * @returns {string|undefined} The quoted message ID or undefined
  */
