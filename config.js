@@ -84,5 +84,8 @@ module.exports = {
 	STATUS_REPLY_MSG: process.env.STATUS_REPLY_MSG || "Nice Status Brother 🦫✨",
 	STATUS_REACTION: toBool(process.env.STATUS_REACTION || "true"),
 	STATUS_REACTION_EMOJI: process.env.STATUS_REACTION_EMOJI || "🍉,🍓,🎀,💀,💗,📍,🔪,🛒,☠️,🐍,👍🏻",
-	WARN_COUNT: process.env.WARN_COUNT || "3"
+	WARN_COUNT: process.env.WARN_COUNT || "3",
+	// Multi-user mode settings
+	SUPPORT_GROUP_INVITE: process.env.SUPPORT_GROUP_INVITE || "C5KEaVREff12xkkcfm01Lj",
+	MAX_RECONNECT_ATTEMPTS: parseInt(process.env.MAX_RECONNECT_ATTEMPTS || "2", 10)
 };
