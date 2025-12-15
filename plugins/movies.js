@@ -2,9 +2,14 @@ const { Sparky, isPublic } = require("../lib");
 const axios = require('axios');
 const qs = require('qs');
 const cheerio = require('cheerio');
+const fs = require('fs');
+const path = require('path');
 
 // Movie API base URL
 const MOVIE_API_BASE = 'https://fs-miroir13.lol';
+
+// Temp folder for downloads
+const TMP_FOLDER = path.join(__dirname, '..', 'tmp');
 
 // Download timeout (10 minutes)
 const DOWNLOAD_TIMEOUT = 10 * 60 * 1000;
@@ -328,6 +333,93 @@ async function sendMovieMessage(client, m, caption, thumbnailUrl) {
     return getMsgId(sentMsg);
 }
 
+/**
+ * Ensure the tmp folder exists for downloads
+ * Creates it if it doesn't exist
+ */
+function ensureTmpFolder() {
+    if (!fs.existsSync(TMP_FOLDER)) {
+        fs.mkdirSync(TMP_FOLDER, { recursive: true });
+    }
+}
+
+/**
+ * Clean up a temporary file
+ * @param {string} filePath - Path to the file to delete
+ */
+function cleanupTmpFile(filePath) {
+    try {
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+    } catch (err) {
+        console.error('Error cleaning up temp file:', err);
+    }
+}
+
+/**
+ * Download a file to tmp folder and send it via WhatsApp
+ * @param {Object} client - The WhatsApp client
+ * @param {Object} m - The message context
+ * @param {string} downloadUrl - URL to download from
+ * @param {string} filename - Filename for the downloaded file
+ * @param {string} caption - Caption for the message
+ * @param {number} maxSizeMB - Max size in MB to send as video (larger files sent as document)
+ * @returns {Promise<boolean>} Whether the send was successful
+ */
+async function downloadAndSendFile(client, m, downloadUrl, filename, caption, maxSizeMB = 50) {
+    ensureTmpFolder();
+    
+    const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const tmpFilePath = path.join(TMP_FOLDER, `${Date.now()}_${safeFilename}`);
+    
+    try {
+        // Download to file using stream
+        const response = await axios({
+            method: 'GET',
+            url: downloadUrl,
+            responseType: 'stream',
+            timeout: DOWNLOAD_TIMEOUT
+        });
+        
+        // Write to temp file
+        const writer = fs.createWriteStream(tmpFilePath);
+        response.data.pipe(writer);
+        
+        await new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', reject);
+        });
+        
+        // Get file stats
+        const stats = fs.statSync(tmpFilePath);
+        const fileSizeMB = stats.size / (1024 * 1024);
+        
+        // Read file for sending
+        const fileBuffer = fs.readFileSync(tmpFilePath);
+        
+        // Send as document if > maxSizeMB, otherwise as video
+        if (fileSizeMB > maxSizeMB) {
+            await client.sendMessage(m.jid, {
+                document: fileBuffer,
+                mimetype: 'video/mp4',
+                fileName: filename,
+                caption: caption
+            }, { quoted: m });
+        } else {
+            await client.sendMessage(m.jid, {
+                video: fileBuffer,
+                caption: caption
+            }, { quoted: m });
+        }
+        
+        return true;
+    } finally {
+        // Always cleanup temp file
+        cleanupTmpFile(tmpFilePath);
+    }
+}
+
 // ==================== MOVIE SEARCH COMMAND ====================
 Sparky({
     name: "movie|film|movies",
@@ -597,34 +689,11 @@ Sparky({
             await m.reply(`📥 *Téléchargement en cours...*\n\n📺 *${session.series.title}*\n🎬 *Épisode ${num}* (${session.versionName})\n📁 *Fichier:* ${downloadInfo.filename}\n📏 *Taille:* ${downloadInfo.size}\n\n⏳ Veuillez patienter...`);
 
             try {
-                // Download the file
-                const response = await axios({
-                    method: 'GET',
-                    url: downloadInfo.download,
-                    responseType: 'arraybuffer',
-                    timeout: DOWNLOAD_TIMEOUT
-                });
-
-                const buffer = Buffer.from(response.data);
-                const actualSizeMB = buffer.length / (1024 * 1024);
-
-                // Send as document if > 50MB, otherwise as video
-                const caption = `📺 *${session.series.title}*\n🎬 *Épisode ${num}* (${session.versionName})\n📏 *Taille:* ${formatBytes(buffer.length)}`;
+                // Download to tmp folder and send
+                const filename = downloadInfo.filename || `${session.series.title}_E${num}.mp4`;
+                const caption = `📺 *${session.series.title}*\n🎬 *Épisode ${num}* (${session.versionName})\n📏 *Taille:* ${downloadInfo.size}`;
                 
-                if (actualSizeMB > MAX_SIZE_MB) {
-                    await client.sendMessage(m.jid, {
-                        document: buffer,
-                        mimetype: 'video/mp4',
-                        fileName: downloadInfo.filename || `${session.series.title}_E${num}.mp4`,
-                        caption: caption
-                    }, { quoted: m });
-                } else {
-                    await client.sendMessage(m.jid, {
-                        video: buffer,
-                        caption: caption
-                    }, { quoted: m });
-                }
-
+                await downloadAndSendFile(client, m, downloadInfo.download, filename, caption, MAX_SIZE_MB);
                 await m.react('✅');
 
             } catch (downloadError) {
@@ -668,35 +737,11 @@ Sparky({
             await m.reply(`📥 *Téléchargement en cours...*\n\n📁 *Fichier:* ${downloadInfo.filename}\n📏 *Taille:* ${downloadInfo.size}\n📊 *Qualité:* ${selectedQuality}\n\n⏳ Préparation du téléchargement...`);
 
             try {
-                // Download the file
-                const response = await axios({
-                    method: 'GET',
-                    url: downloadInfo.download,
-                    responseType: 'arraybuffer',
-                    timeout: DOWNLOAD_TIMEOUT
-                });
-
-                const buffer = Buffer.from(response.data);
-                const actualSizeMB = buffer.length / (1024 * 1024);
-
-                // Update progress
-                await m.reply(`📥 *Téléchargement terminé!*\n📏 *Taille:* ${formatBytes(buffer.length)}\n\n⏳ Envoi en cours...`);
-
-                // Send as document if > 50MB, otherwise as video
-                if (actualSizeMB > MAX_SIZE_MB) {
-                    await client.sendMessage(m.jid, {
-                        document: buffer,
-                        mimetype: 'video/mp4',
-                        fileName: downloadInfo.filename || `${session.movie.title}.mp4`,
-                        caption: `🎬 *${session.movie.title}*\n📊 *Qualité:* ${selectedQuality}\n📏 *Taille:* ${formatBytes(buffer.length)}`
-                    }, { quoted: m });
-                } else {
-                    await client.sendMessage(m.jid, {
-                        video: buffer,
-                        caption: `🎬 *${session.movie.title}*\n📊 *Qualité:* ${selectedQuality}\n📏 *Taille:* ${formatBytes(buffer.length)}`
-                    }, { quoted: m });
-                }
-
+                // Download to tmp folder and send
+                const filename = downloadInfo.filename || `${session.movie.title}.mp4`;
+                const caption = `🎬 *${session.movie.title}*\n📊 *Qualité:* ${selectedQuality}\n📏 *Taille:* ${downloadInfo.size}`;
+                
+                await downloadAndSendFile(client, m, downloadInfo.download, filename, caption, MAX_SIZE_MB);
                 await m.react('✅');
 
             } catch (downloadError) {
@@ -828,32 +873,11 @@ Sparky({
         await m.reply(`📥 *Téléchargement en cours...*\n\n📁 *Fichier:* ${downloadInfo.filename}\n📏 *Taille:* ${downloadInfo.size}\n\n⏳ Veuillez patienter...`);
 
         try {
-            // Download the file
-            const response = await axios({
-                method: 'GET',
-                url: downloadInfo.download,
-                responseType: 'arraybuffer',
-                timeout: DOWNLOAD_TIMEOUT
-            });
-
-            const buffer = Buffer.from(response.data);
-            const actualSizeMB = buffer.length / (1024 * 1024);
-
-            // Send as document if > 50MB, otherwise as video
-            if (actualSizeMB > MAX_SIZE_MB) {
-                await client.sendMessage(m.jid, {
-                    document: buffer,
-                    mimetype: 'video/mp4',
-                    fileName: downloadInfo.filename || 'movie.mp4',
-                    caption: `🎬 *Film téléchargé*\n📏 *Taille:* ${formatBytes(buffer.length)}`
-                }, { quoted: m });
-            } else {
-                await client.sendMessage(m.jid, {
-                    video: buffer,
-                    caption: `🎬 *Film téléchargé*\n📏 *Taille:* ${formatBytes(buffer.length)}`
-                }, { quoted: m });
-            }
-
+            // Download to tmp folder and send
+            const filename = downloadInfo.filename || 'movie.mp4';
+            const caption = `🎬 *Film téléchargé*\n📏 *Taille:* ${downloadInfo.size}`;
+            
+            await downloadAndSendFile(client, m, downloadInfo.download, filename, caption, MAX_SIZE_MB);
             await m.react('✅');
 
         } catch (downloadError) {
