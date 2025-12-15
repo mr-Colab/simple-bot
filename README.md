@@ -23,11 +23,24 @@ The bot supports multi-user mode, allowing you to manage multiple WhatsApp bot i
 npm run multi
 ```
 
-**API Access:**
-For external API access (perfect for Pterodactyl deployments), see the [API Guide](API_GUIDE.md) for detailed documentation on how to:
-- Create bot sessions via API
-- Manage sessions remotely
-- Secure API endpoints with API keys
+**API Access for External Frontends:**
+
+Perfect for Pterodactyl deployments! You can now create your own custom frontend to connect new numbers via API.
+
+📚 **Documentation:**
+- [API Guide](API_GUIDE.md) - Complete API reference with cURL, Node.js, and Python examples
+- [Custom Frontend Guide](CUSTOM_FRONTEND_GUIDE.md) - Integration examples for React, Vue, Next.js, and mobile apps
+- [React Example](REACT_FRONTEND_EXAMPLE.md) - Ready-to-use React component
+
+🎨 **Ready-to-Use Frontend:**
+- [`frontend-example.html`](frontend-example.html) - Standalone HTML page you can host anywhere
+
+**Features:**
+- ✅ CORS enabled for external API access
+- ✅ Optional API key authentication
+- ✅ Create and manage bot sessions remotely
+- ✅ Works with any frontend framework
+- ✅ Perfect for custom dashboards and integrations
 
 
 ### AUTHENTICATION

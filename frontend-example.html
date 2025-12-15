@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Bot - Connect New Number</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+      width: 100%;
+      padding: 40px;
+      animation: slideUp 0.5s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .logo {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .logo h1 {
+      color: #667eea;
+      font-size: 2em;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    
+    .logo p {
+      color: #6b7280;
+      font-size: 0.95em;
+    }
+    
+    .form-group {
+      margin-bottom: 25px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #374151;
+      font-weight: 600;
+      font-size: 0.95em;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 16px;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.3s ease;
+      background: #f9fafb;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+    
+    .form-group input::placeholder {
+      color: #9ca3af;
+    }
+    
+    .hint {
+      margin-top: 6px;
+      font-size: 0.85em;
+      color: #6b7280;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: 'Inter', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn:active {
+      transform: translateY(0);
+    }
+    
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .alert {
+      padding: 16px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 0.95em;
+      animation: slideDown 0.3s ease-out;
+    }
+    
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .alert-success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #10b981;
+    }
+    
+    .alert-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #ef4444;
+    }
+    
+    .alert-info {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #3b82f6;
+    }
+    
+    .pairing-code-box {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      margin: 25px 0;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+    
+    .pairing-code-box h3 {
+      font-size: 1em;
+      margin-bottom: 15px;
+      opacity: 0.9;
+      font-weight: 500;
+    }
+    
+    .pairing-code {
+      font-size: 3em;
+      font-weight: 700;
+      letter-spacing: 8px;
+      margin: 10px 0;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+    
+    .instructions {
+      background: #f9fafb;
+      border-left: 4px solid #667eea;
+      padding: 16px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-size: 0.9em;
+      color: #374151;
+    }
+    
+    .instructions h4 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 1em;
+    }
+    
+    .instructions ol {
+      margin-left: 20px;
+      line-height: 1.8;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .loader {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .config-section {
+      background: #f9fafb;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 25px;
+      border: 1px solid #e5e7eb;
+    }
+    
+    .config-section h3 {
+      color: #374151;
+      font-size: 1em;
+      margin-bottom: 15px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <h1>🤖 WhatsApp Bot</h1>
+      <p>Connect Your Number</p>
+    </div>
+
+    <!-- Configuration Section -->
+    <div class="config-section">
+      <h3>⚙️ API Configuration</h3>
+      <div class="form-group">
+        <label>API Server URL</label>
+        <input type="text" id="apiUrl" placeholder="http://your-server-ip:8000" value="http://localhost:8000">
+        <div class="hint">Enter your API server URL</div>
+      </div>
+      <div class="form-group">
+        <label>API Key (optional)</label>
+        <input type="password" id="apiKey" placeholder="Leave empty if not required">
+        <div class="hint">Enter your API key if configured on server</div>
+      </div>
+    </div>
+
+    <!-- Alert Box -->
+    <div id="alertBox" class="hidden"></div>
+
+    <!-- Pairing Code Display -->
+    <div id="pairingBox" class="hidden">
+      <div class="pairing-code-box">
+        <h3>Your Pairing Code</h3>
+        <div class="pairing-code" id="pairingCode">----</div>
+      </div>
+      
+      <div class="instructions">
+        <h4>📱 How to connect:</h4>
+        <ol>
+          <li>Open WhatsApp on your phone</li>
+          <li>Go to <strong>Settings → Linked Devices</strong></li>
+          <li>Tap <strong>"Link a Device"</strong></li>
+          <li>Enter the pairing code shown above</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Connection Form -->
+    <form id="connectForm">
+      <div class="form-group">
+        <label>📞 Phone Number</label>
+        <input 
+          type="tel" 
+          id="phoneNumber" 
+          placeholder="1234567890" 
+          required
+          pattern="[0-9]+"
+        >
+        <div class="hint">Enter with country code, no spaces or special characters (e.g., 1234567890)</div>
+      </div>
+
+      <button type="submit" class="btn" id="submitBtn">
+        Connect WhatsApp Bot
+      </button>
+    </form>
+  </div>
+
+  <script>
+    // Configuration
+    let API_URL = '';
+    let API_KEY = '';
+
+    // Update API configuration from inputs
+    function updateConfig() {
+      API_URL = document.getElementById('apiUrl').value.trim();
+      API_KEY = document.getElementById('apiKey').value.trim();
+      
+      // Save to localStorage
+      localStorage.setItem('whatsapp_api_url', API_URL);
+      localStorage.setItem('whatsapp_api_key', API_KEY);
+    }
+
+    // Load saved configuration
+    function loadConfig() {
+      const savedUrl = localStorage.getItem('whatsapp_api_url');
+      const savedKey = localStorage.getItem('whatsapp_api_key');
+      
+      if (savedUrl) {
+        document.getElementById('apiUrl').value = savedUrl;
+        API_URL = savedUrl;
+      }
+      if (savedKey) {
+        document.getElementById('apiKey').value = savedKey;
+        API_KEY = savedKey;
+      }
+    }
+
+    // Show alert message
+    function showAlert(message, type = 'info') {
+      const alertBox = document.getElementById('alertBox');
+      alertBox.className = `alert alert-${type}`;
+      alertBox.textContent = message;
+      alertBox.classList.remove('hidden');
+      
+      // Auto-hide after 5 seconds for success messages
+      if (type === 'success') {
+        setTimeout(() => {
+          alertBox.classList.add('hidden');
+        }, 5000);
+      }
+    }
+
+    // Show pairing code
+    function showPairingCode(code) {
+      document.getElementById('pairingCode').textContent = code;
+      document.getElementById('pairingBox').classList.remove('hidden');
+    }
+
+    // Hide pairing code
+    function hidePairingCode() {
+      document.getElementById('pairingBox').classList.add('hidden');
+    }
+
+    // Handle form submission
+    document.getElementById('connectForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      // Update configuration
+      updateConfig();
+      
+      if (!API_URL) {
+        showAlert('Please enter API Server URL', 'error');
+        return;
+      }
+
+      const phoneNumber = document.getElementById('phoneNumber').value.trim();
+      const userId = 'bot_' + phoneNumber.replace(/[^0-9]/g, '');
+      
+      const submitBtn = document.getElementById('submitBtn');
+      const originalText = submitBtn.innerHTML;
+      
+      // Disable button and show loader
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="loader"></span> Connecting...';
+      
+      try {
+        // Prepare headers
+        const headers = {
+          'Content-Type': 'application/json'
+        };
+        
+        // Add API key if provided
+        if (API_KEY) {
+          headers['X-API-Key'] = API_KEY;
+        }
+        
+        // Make API request
+        const response = await fetch(`${API_URL}/api/sessions`, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({
+            userId: userId,
+            phoneNumber: phoneNumber
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          if (data.pairingCode) {
+            showPairingCode(data.pairingCode);
+            showAlert('✅ ' + data.message, 'success');
+            document.getElementById('phoneNumber').value = '';
+          } else {
+            showAlert('✅ ' + data.message, 'success');
+            hidePairingCode();
+          }
+        } else {
+          showAlert('❌ ' + (data.message || 'Failed to connect'), 'error');
+          hidePairingCode();
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showAlert('❌ Connection error: ' + error.message + '. Please check your API URL and try again.', 'error');
+        hidePairingCode();
+      } finally {
+        // Re-enable button
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+      }
+    });
+
+    // Update config when inputs change
+    document.getElementById('apiUrl').addEventListener('change', updateConfig);
+    document.getElementById('apiKey').addEventListener('change', updateConfig);
+
+    // Load saved configuration on page load
+    loadConfig();
+  </script>
+</body>
+</html>
