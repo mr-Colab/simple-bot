@@ -312,13 +312,6 @@ Sparky({
         // Store session for this user
         const sessionKey = m.sender;
         const limitedResults = results.slice(0, 10);
-        
-        movieSessions.set(sessionKey, {
-            type: 'search',
-            results: limitedResults,
-            query: query,
-            timestamp: Date.now()
-        });
 
         // Format search results
         let message = `🎬 *Résultats pour "${query}"*\n\n`;
@@ -329,7 +322,18 @@ Sparky({
 
         message += `\n_Répondez avec un numéro (1-${limitedResults.length}) pour voir les détails du film._`;
 
-        await m.reply(message);
+        // Send message and capture the message ID for reply validation
+        const sentMsg = await m.reply(message);
+        const botMsgId = sentMsg?.key?.id;
+        
+        movieSessions.set(sessionKey, {
+            type: 'search',
+            results: limitedResults,
+            query: query,
+            timestamp: Date.now(),
+            botMsgId: botMsgId
+        });
+
         await m.react('✅');
 
     } catch (error) {
@@ -355,6 +359,11 @@ Sparky({
         
         const session = movieSessions.get(sessionKey);
         if (!session) return;
+        
+        // Validate that the reply is specifically to the bot's movie-related message
+        // This prevents spam from processing unrelated reply messages with numbers
+        const quotedMsgId = m.quoted?.stanzaId || m.quoted?.key?.id;
+        if (session.botMsgId && quotedMsgId !== session.botMsgId) return;
         
         const input = m.body?.trim();
         if (!input) return;
@@ -404,14 +413,6 @@ Sparky({
 
             // Check if it's a series
             if (details.isSeries) {
-                // Update session for series episode selection
-                movieSessions.set(sessionKey, {
-                    type: 'series_version',
-                    series: details,
-                    thumbnail: selectedMovie.thumbnail,
-                    timestamp: Date.now()
-                });
-
                 caption += `\n📺 *C'est une série TV!*\n`;
                 caption += `📊 Épisodes VF: ${details.totalVf}\n`;
                 caption += `📊 Épisodes VOSTFR: ${details.totalVostfr}\n`;
@@ -419,15 +420,29 @@ Sparky({
                 caption += `*1.* VF (Français)\n`;
                 caption += `*2.* VOSTFR (Sous-titré)\n`;
                 caption += `\n_Répondez 1 ou 2 pour choisir._`;
+
+                // Send with thumbnail if available and capture message ID
+                let sentMsg;
+                if (selectedMovie.thumbnail) {
+                    sentMsg = await client.sendMessage(m.jid, {
+                        image: { url: selectedMovie.thumbnail },
+                        caption: caption
+                    }, { quoted: m });
+                } else {
+                    sentMsg = await m.reply(caption);
+                }
+                const botMsgId = sentMsg?.key?.id;
+
+                // Update session for series episode selection
+                movieSessions.set(sessionKey, {
+                    type: 'series_version',
+                    series: details,
+                    thumbnail: selectedMovie.thumbnail,
+                    timestamp: Date.now(),
+                    botMsgId: botMsgId
+                });
             } else {
                 // It's a movie - show quality options
-                movieSessions.set(sessionKey, {
-                    type: 'details',
-                    movie: details,
-                    thumbnail: selectedMovie.thumbnail,
-                    timestamp: Date.now()
-                });
-
                 if (details.player && Object.keys(details.player).length > 0) {
                     const qualities = Object.keys(details.player);
                     caption += `\n📥 *Qualités disponibles:*\n`;
@@ -435,20 +450,39 @@ Sparky({
                         caption += `*${i + 1}.* ${q}\n`;
                     });
                     caption += `\n_Répondez avec un numéro (1-${qualities.length}) pour télécharger._`;
+
+                    // Send with thumbnail if available and capture message ID
+                    let sentMsg;
+                    if (selectedMovie.thumbnail) {
+                        sentMsg = await client.sendMessage(m.jid, {
+                            image: { url: selectedMovie.thumbnail },
+                            caption: caption
+                        }, { quoted: m });
+                    } else {
+                        sentMsg = await m.reply(caption);
+                    }
+                    const botMsgId = sentMsg?.key?.id;
+
+                    movieSessions.set(sessionKey, {
+                        type: 'details',
+                        movie: details,
+                        thumbnail: selectedMovie.thumbnail,
+                        timestamp: Date.now(),
+                        botMsgId: botMsgId
+                    });
                 } else {
                     caption += `\n❌ Aucun lien de téléchargement disponible.`;
+                    // Send with thumbnail if available
+                    if (selectedMovie.thumbnail) {
+                        await client.sendMessage(m.jid, {
+                            image: { url: selectedMovie.thumbnail },
+                            caption: caption
+                        }, { quoted: m });
+                    } else {
+                        await m.reply(caption);
+                    }
                     movieSessions.delete(sessionKey);
                 }
-            }
-
-            // Send with thumbnail if available
-            if (selectedMovie.thumbnail) {
-                await client.sendMessage(m.jid, {
-                    image: { url: selectedMovie.thumbnail },
-                    caption: caption
-                }, { quoted: m });
-            } else {
-                await m.reply(caption);
             }
             
             await m.react('✅');
@@ -470,18 +504,6 @@ Sparky({
                 return await m.reply(`❌ Aucun épisode disponible en ${versionName}.`);
             }
 
-            // Update session for episode selection
-            movieSessions.set(sessionKey, {
-                type: 'series_episode',
-                series: session.series,
-                version: version,
-                versionName: versionName,
-                episodes: episodes,
-                episodeNumbers: episodeNumbers,
-                thumbnail: session.thumbnail,
-                timestamp: Date.now()
-            });
-
             let message = `📺 *${session.series.title}* - ${versionName}\n\n`;
             message += `📊 *${episodeNumbers.length} épisodes disponibles*\n\n`;
             
@@ -496,7 +518,23 @@ Sparky({
             
             message += `\n_Répondez avec le numéro de l'épisode à télécharger._`;
 
-            await m.reply(message);
+            // Send message and capture ID
+            const sentMsg = await m.reply(message);
+            const botMsgId = sentMsg?.key?.id;
+
+            // Update session for episode selection
+            movieSessions.set(sessionKey, {
+                type: 'series_episode',
+                series: session.series,
+                version: version,
+                versionName: versionName,
+                episodes: episodes,
+                episodeNumbers: episodeNumbers,
+                thumbnail: session.thumbnail,
+                timestamp: Date.now(),
+                botMsgId: botMsgId
+            });
+
             await m.react('✅');
             return;
         }
