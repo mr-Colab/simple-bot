@@ -2,9 +2,14 @@ const { Sparky, isPublic } = require("../lib");
 const axios = require('axios');
 const qs = require('qs');
 const cheerio = require('cheerio');
+const fs = require('fs');
+const path = require('path');
 
 // Movie API base URL
 const MOVIE_API_BASE = 'https://fs-miroir13.lol';
+
+// Temp folder for downloads
+const TMP_FOLDER = path.join(__dirname, '..', 'tmp');
 
 // Download timeout (10 minutes)
 const DOWNLOAD_TIMEOUT = 10 * 60 * 1000;
@@ -286,6 +291,135 @@ function cleanupSessions() {
 // Clean up sessions periodically
 setInterval(cleanupSessions, 60000);
 
+/**
+ * Extract message ID from a sent message object
+ * @param {Object} sentMsg - The message object returned by sendMessage/reply
+ * @returns {string|undefined} The message ID or undefined if not available
+ */
+function getMsgId(sentMsg) {
+    return sentMsg?.key?.id;
+}
+
+/**
+ * Get the quoted message ID from the message context
+ * The message ID can be in different properties depending on the message type:
+ * - stanzaId: The message ID stored in the quoted object (extracted from contextInfo during serialization)
+ * - key.id: Fallback when stanzaId is not available
+ * @param {Object} quoted - The quoted message object
+ * @returns {string|undefined} The quoted message ID or undefined
+ */
+function getQuotedMsgId(quoted) {
+    return quoted?.stanzaId || quoted?.key?.id;
+}
+
+/**
+ * Send a message with optional thumbnail and return the message ID
+ * @param {Object} client - The WhatsApp client
+ * @param {Object} m - The message context
+ * @param {string} caption - The message caption/text
+ * @param {string|null} thumbnailUrl - Optional thumbnail URL
+ * @returns {Promise<string|undefined>} The sent message ID
+ */
+async function sendMovieMessage(client, m, caption, thumbnailUrl) {
+    let sentMsg;
+    if (thumbnailUrl) {
+        sentMsg = await client.sendMessage(m.jid, {
+            image: { url: thumbnailUrl },
+            caption: caption
+        }, { quoted: m });
+    } else {
+        sentMsg = await m.reply(caption);
+    }
+    return getMsgId(sentMsg);
+}
+
+/**
+ * Ensure the tmp folder exists for downloads
+ * Creates it if it doesn't exist
+ */
+function ensureTmpFolder() {
+    if (!fs.existsSync(TMP_FOLDER)) {
+        fs.mkdirSync(TMP_FOLDER, { recursive: true });
+    }
+}
+
+/**
+ * Clean up a temporary file
+ * @param {string} filePath - Path to the file to delete
+ */
+function cleanupTmpFile(filePath) {
+    try {
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+    } catch (err) {
+        console.error('Error cleaning up temp file:', err);
+    }
+}
+
+/**
+ * Download a file to tmp folder and send it via WhatsApp
+ * @param {Object} client - The WhatsApp client
+ * @param {Object} m - The message context
+ * @param {string} downloadUrl - URL to download from
+ * @param {string} filename - Filename for the downloaded file
+ * @param {string} caption - Caption for the message
+ * @param {number} maxSizeMB - Max size in MB to send as video (larger files sent as document)
+ * @returns {Promise<boolean>} Whether the send was successful
+ */
+async function downloadAndSendFile(client, m, downloadUrl, filename, caption, maxSizeMB = 50) {
+    ensureTmpFolder();
+    
+    const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const tmpFilePath = path.join(TMP_FOLDER, `${Date.now()}_${safeFilename}`);
+    
+    try {
+        // Download to file using stream
+        const response = await axios({
+            method: 'GET',
+            url: downloadUrl,
+            responseType: 'stream',
+            timeout: DOWNLOAD_TIMEOUT
+        });
+        
+        // Write to temp file
+        const writer = fs.createWriteStream(tmpFilePath);
+        response.data.pipe(writer);
+        
+        await new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', reject);
+        });
+        
+        // Get file stats
+        const stats = fs.statSync(tmpFilePath);
+        const fileSizeMB = stats.size / (1024 * 1024);
+        
+        // Read file into buffer for sending (required by baileys)
+        const fileBuffer = fs.readFileSync(tmpFilePath);
+        
+        // Send as document if > maxSizeMB, otherwise as video
+        if (fileSizeMB > maxSizeMB) {
+            await client.sendMessage(m.jid, {
+                document: fileBuffer,
+                mimetype: 'video/mp4',
+                fileName: filename,
+                caption: caption
+            }, { quoted: m });
+        } else {
+            await client.sendMessage(m.jid, {
+                video: fileBuffer,
+                caption: caption
+            }, { quoted: m });
+        }
+        
+        return true;
+    } finally {
+        // Always cleanup temp file
+        cleanupTmpFile(tmpFilePath);
+    }
+}
+
 // ==================== MOVIE SEARCH COMMAND ====================
 Sparky({
     name: "movie|film|movies",
@@ -294,7 +428,12 @@ Sparky({
     category: "downloader",
 }, async ({ m, client, args }) => {
     try {
-        const query = args || m.quoted?.text;
+        // Skip if message is from the bot itself to prevent recursive processing
+        if (m.isSelf) return;
+
+        // Only use args as the query - don't fall back to quoted text to prevent
+        // accidental searches using bot's own responses as queries
+        const query = args?.trim();
         
         if (!query) {
             return await m.reply('🎬 *Recherche de Film*\n\nEntrez le nom du film à rechercher.\nExemple: .movie Avengers');
@@ -312,13 +451,6 @@ Sparky({
         // Store session for this user
         const sessionKey = m.sender;
         const limitedResults = results.slice(0, 10);
-        
-        movieSessions.set(sessionKey, {
-            type: 'search',
-            results: limitedResults,
-            query: query,
-            timestamp: Date.now()
-        });
 
         // Format search results
         let message = `🎬 *Résultats pour "${query}"*\n\n`;
@@ -329,7 +461,18 @@ Sparky({
 
         message += `\n_Répondez avec un numéro (1-${limitedResults.length}) pour voir les détails du film._`;
 
-        await m.reply(message);
+        // Send message and capture the message ID for reply validation
+        const sentMsg = await m.reply(message);
+        const botMsgId = getMsgId(sentMsg);
+        
+        movieSessions.set(sessionKey, {
+            type: 'search',
+            results: limitedResults,
+            query: query,
+            timestamp: Date.now(),
+            botMsgId: botMsgId
+        });
+
         await m.react('✅');
 
     } catch (error) {
@@ -346,6 +489,9 @@ Sparky({
     desc: "Handle movie selection responses",
 }, async ({ m, client, args }) => {
     try {
+        // Skip if message is from the bot itself to prevent recursive processing
+        if (m.isSelf) return;
+
         // Quick exit if no session exists for this user (performance optimization)
         const sessionKey = m.sender;
         if (!movieSessions.has(sessionKey)) return;
@@ -355,6 +501,11 @@ Sparky({
         
         const session = movieSessions.get(sessionKey);
         if (!session) return;
+        
+        // Validate that the reply is specifically to the bot's movie-related message
+        // This prevents spam from processing unrelated reply messages with numbers
+        const quotedMsgId = getQuotedMsgId(m.quoted);
+        if (session.botMsgId && quotedMsgId !== session.botMsgId) return;
         
         const input = m.body?.trim();
         if (!input) return;
@@ -404,14 +555,6 @@ Sparky({
 
             // Check if it's a series
             if (details.isSeries) {
-                // Update session for series episode selection
-                movieSessions.set(sessionKey, {
-                    type: 'series_version',
-                    series: details,
-                    thumbnail: selectedMovie.thumbnail,
-                    timestamp: Date.now()
-                });
-
                 caption += `\n📺 *C'est une série TV!*\n`;
                 caption += `📊 Épisodes VF: ${details.totalVf}\n`;
                 caption += `📊 Épisodes VOSTFR: ${details.totalVostfr}\n`;
@@ -419,15 +562,20 @@ Sparky({
                 caption += `*1.* VF (Français)\n`;
                 caption += `*2.* VOSTFR (Sous-titré)\n`;
                 caption += `\n_Répondez 1 ou 2 pour choisir._`;
+
+                // Send message with optional thumbnail and capture ID
+                const botMsgId = await sendMovieMessage(client, m, caption, selectedMovie.thumbnail);
+
+                // Update session for series episode selection
+                movieSessions.set(sessionKey, {
+                    type: 'series_version',
+                    series: details,
+                    thumbnail: selectedMovie.thumbnail,
+                    timestamp: Date.now(),
+                    botMsgId: botMsgId
+                });
             } else {
                 // It's a movie - show quality options
-                movieSessions.set(sessionKey, {
-                    type: 'details',
-                    movie: details,
-                    thumbnail: selectedMovie.thumbnail,
-                    timestamp: Date.now()
-                });
-
                 if (details.player && Object.keys(details.player).length > 0) {
                     const qualities = Object.keys(details.player);
                     caption += `\n📥 *Qualités disponibles:*\n`;
@@ -435,20 +583,23 @@ Sparky({
                         caption += `*${i + 1}.* ${q}\n`;
                     });
                     caption += `\n_Répondez avec un numéro (1-${qualities.length}) pour télécharger._`;
+
+                    // Send message with optional thumbnail and capture ID
+                    const botMsgId = await sendMovieMessage(client, m, caption, selectedMovie.thumbnail);
+
+                    movieSessions.set(sessionKey, {
+                        type: 'details',
+                        movie: details,
+                        thumbnail: selectedMovie.thumbnail,
+                        timestamp: Date.now(),
+                        botMsgId: botMsgId
+                    });
                 } else {
                     caption += `\n❌ Aucun lien de téléchargement disponible.`;
+                    // Send with thumbnail if available
+                    await sendMovieMessage(client, m, caption, selectedMovie.thumbnail);
                     movieSessions.delete(sessionKey);
                 }
-            }
-
-            // Send with thumbnail if available
-            if (selectedMovie.thumbnail) {
-                await client.sendMessage(m.jid, {
-                    image: { url: selectedMovie.thumbnail },
-                    caption: caption
-                }, { quoted: m });
-            } else {
-                await m.reply(caption);
             }
             
             await m.react('✅');
@@ -470,18 +621,6 @@ Sparky({
                 return await m.reply(`❌ Aucun épisode disponible en ${versionName}.`);
             }
 
-            // Update session for episode selection
-            movieSessions.set(sessionKey, {
-                type: 'series_episode',
-                series: session.series,
-                version: version,
-                versionName: versionName,
-                episodes: episodes,
-                episodeNumbers: episodeNumbers,
-                thumbnail: session.thumbnail,
-                timestamp: Date.now()
-            });
-
             let message = `📺 *${session.series.title}* - ${versionName}\n\n`;
             message += `📊 *${episodeNumbers.length} épisodes disponibles*\n\n`;
             
@@ -496,7 +635,23 @@ Sparky({
             
             message += `\n_Répondez avec le numéro de l'épisode à télécharger._`;
 
-            await m.reply(message);
+            // Send message and capture ID
+            const sentMsg = await m.reply(message);
+            const botMsgId = getMsgId(sentMsg);
+
+            // Update session for episode selection
+            movieSessions.set(sessionKey, {
+                type: 'series_episode',
+                series: session.series,
+                version: version,
+                versionName: versionName,
+                episodes: episodes,
+                episodeNumbers: episodeNumbers,
+                thumbnail: session.thumbnail,
+                timestamp: Date.now(),
+                botMsgId: botMsgId
+            });
+
             await m.react('✅');
             return;
         }
@@ -534,34 +689,11 @@ Sparky({
             await m.reply(`📥 *Téléchargement en cours...*\n\n📺 *${session.series.title}*\n🎬 *Épisode ${num}* (${session.versionName})\n📁 *Fichier:* ${downloadInfo.filename}\n📏 *Taille:* ${downloadInfo.size}\n\n⏳ Veuillez patienter...`);
 
             try {
-                // Download the file
-                const response = await axios({
-                    method: 'GET',
-                    url: downloadInfo.download,
-                    responseType: 'arraybuffer',
-                    timeout: DOWNLOAD_TIMEOUT
-                });
-
-                const buffer = Buffer.from(response.data);
-                const actualSizeMB = buffer.length / (1024 * 1024);
-
-                // Send as document if > 50MB, otherwise as video
-                const caption = `📺 *${session.series.title}*\n🎬 *Épisode ${num}* (${session.versionName})\n📏 *Taille:* ${formatBytes(buffer.length)}`;
+                // Download to tmp folder and send
+                const filename = downloadInfo.filename || `${session.series.title}_E${num}.mp4`;
+                const caption = `📺 *${session.series.title}*\n🎬 *Épisode ${num}* (${session.versionName})\n📏 *Taille:* ${downloadInfo.size}`;
                 
-                if (actualSizeMB > MAX_SIZE_MB) {
-                    await client.sendMessage(m.jid, {
-                        document: buffer,
-                        mimetype: 'video/mp4',
-                        fileName: downloadInfo.filename || `${session.series.title}_E${num}.mp4`,
-                        caption: caption
-                    }, { quoted: m });
-                } else {
-                    await client.sendMessage(m.jid, {
-                        video: buffer,
-                        caption: caption
-                    }, { quoted: m });
-                }
-
+                await downloadAndSendFile(client, m, downloadInfo.download, filename, caption, MAX_SIZE_MB);
                 await m.react('✅');
 
             } catch (downloadError) {
@@ -605,35 +737,11 @@ Sparky({
             await m.reply(`📥 *Téléchargement en cours...*\n\n📁 *Fichier:* ${downloadInfo.filename}\n📏 *Taille:* ${downloadInfo.size}\n📊 *Qualité:* ${selectedQuality}\n\n⏳ Préparation du téléchargement...`);
 
             try {
-                // Download the file
-                const response = await axios({
-                    method: 'GET',
-                    url: downloadInfo.download,
-                    responseType: 'arraybuffer',
-                    timeout: DOWNLOAD_TIMEOUT
-                });
-
-                const buffer = Buffer.from(response.data);
-                const actualSizeMB = buffer.length / (1024 * 1024);
-
-                // Update progress
-                await m.reply(`📥 *Téléchargement terminé!*\n📏 *Taille:* ${formatBytes(buffer.length)}\n\n⏳ Envoi en cours...`);
-
-                // Send as document if > 50MB, otherwise as video
-                if (actualSizeMB > MAX_SIZE_MB) {
-                    await client.sendMessage(m.jid, {
-                        document: buffer,
-                        mimetype: 'video/mp4',
-                        fileName: downloadInfo.filename || `${session.movie.title}.mp4`,
-                        caption: `🎬 *${session.movie.title}*\n📊 *Qualité:* ${selectedQuality}\n📏 *Taille:* ${formatBytes(buffer.length)}`
-                    }, { quoted: m });
-                } else {
-                    await client.sendMessage(m.jid, {
-                        video: buffer,
-                        caption: `🎬 *${session.movie.title}*\n📊 *Qualité:* ${selectedQuality}\n📏 *Taille:* ${formatBytes(buffer.length)}`
-                    }, { quoted: m });
-                }
-
+                // Download to tmp folder and send
+                const filename = downloadInfo.filename || `${session.movie.title}.mp4`;
+                const caption = `🎬 *${session.movie.title}*\n📊 *Qualité:* ${selectedQuality}\n📏 *Taille:* ${downloadInfo.size}`;
+                
+                await downloadAndSendFile(client, m, downloadInfo.download, filename, caption, MAX_SIZE_MB);
                 await m.react('✅');
 
             } catch (downloadError) {
@@ -660,6 +768,9 @@ Sparky({
     category: "downloader",
 }, async ({ m, client, args }) => {
     try {
+        // Skip if message is from the bot itself to prevent recursive processing
+        if (m.isSelf) return;
+
         const url = args || m.quoted?.text;
         
         if (!url) {
@@ -735,6 +846,9 @@ Sparky({
     category: "downloader",
 }, async ({ m, client, args }) => {
     try {
+        // Skip if message is from the bot itself to prevent recursive processing
+        if (m.isSelf) return;
+
         const url = args || m.quoted?.text;
         
         if (!url) {
@@ -759,32 +873,11 @@ Sparky({
         await m.reply(`📥 *Téléchargement en cours...*\n\n📁 *Fichier:* ${downloadInfo.filename}\n📏 *Taille:* ${downloadInfo.size}\n\n⏳ Veuillez patienter...`);
 
         try {
-            // Download the file
-            const response = await axios({
-                method: 'GET',
-                url: downloadInfo.download,
-                responseType: 'arraybuffer',
-                timeout: DOWNLOAD_TIMEOUT
-            });
-
-            const buffer = Buffer.from(response.data);
-            const actualSizeMB = buffer.length / (1024 * 1024);
-
-            // Send as document if > 50MB, otherwise as video
-            if (actualSizeMB > MAX_SIZE_MB) {
-                await client.sendMessage(m.jid, {
-                    document: buffer,
-                    mimetype: 'video/mp4',
-                    fileName: downloadInfo.filename || 'movie.mp4',
-                    caption: `🎬 *Film téléchargé*\n📏 *Taille:* ${formatBytes(buffer.length)}`
-                }, { quoted: m });
-            } else {
-                await client.sendMessage(m.jid, {
-                    video: buffer,
-                    caption: `🎬 *Film téléchargé*\n📏 *Taille:* ${formatBytes(buffer.length)}`
-                }, { quoted: m });
-            }
-
+            // Download to tmp folder and send
+            const filename = downloadInfo.filename || 'movie.mp4';
+            const caption = `🎬 *Film téléchargé*\n📏 *Taille:* ${downloadInfo.size}`;
+            
+            await downloadAndSendFile(client, m, downloadInfo.download, filename, caption, MAX_SIZE_MB);
             await m.react('✅');
 
         } catch (downloadError) {

@@ -144,3 +144,6 @@ data/assets/audio/
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Temporary download folder for movies
+tmp/
