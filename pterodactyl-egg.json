@@ -22,7 +22,7 @@
     },
     "scripts": {
         "installation": {
-            "script": "#!/bin/bash\napt update\napt install -y git ffmpeg\n\nif [ -d \"/mnt/server/.git\" ]; then\n    cd /mnt/server\n    git pull\nelse\n    git clone https://github.com/mr-Colab/simple-bot.git /mnt/server\nfi\n\ncd /mnt/server\nnpm install\n",
+            "script": "#!/bin/ash\napk update\napk add --no-cache git ffmpeg\n\nif [ -d \"/mnt/server/.git\" ]; then\n    cd /mnt/server\n    git pull\nelse\n    git clone ${GIT_REPO:-https://github.com/mr-Colab/simple-bot.git} /mnt/server\nfi\n\ncd /mnt/server\nnpm install\n",
             "container": "node:20-alpine",
             "entrypoint": "ash"
         }
@@ -136,6 +136,16 @@
             "user_viewable": true,
             "user_editable": true,
             "rules": "nullable|string|max:100",
+            "field_type": "text"
+        },
+        {
+            "name": "Git Repository URL",
+            "description": "Git repository URL to clone the bot from (change for custom forks)",
+            "env_variable": "GIT_REPO",
+            "default_value": "https://github.com/mr-Colab/simple-bot.git",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:200",
             "field_type": "text"
         }
     ]
