@@ -60,6 +60,8 @@
     : process.env.FLY_IO ?  'FLY_IO'
     : process.env.CF_PAGES ? "CLOUDFLARE"
     : process.env.SPACE_ID ? "HUGGINGFACE"
+    : process.env.P_SERVER_UUID ? 'PTERODACTYL'  // Pterodactyl panel detection
+    : process.env.PTERODACTYL ? 'PTERODACTYL'     // Alternative env var
     : 'VPS';
 
   // Setup web server for Koyeb/Render to keep alive

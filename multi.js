@@ -4,10 +4,14 @@
  * 
  * Usage: node multi.js
  * Then open http://localhost:8000 in your browser
+ * 
+ * API Endpoints available for external frontend integration.
+ * See API_DOCUMENTATION.md for details.
  */
 
 const express = require("express");
 const http = require("http");
+const cors = require("cors");
 const cron = require('node-cron');
 const axios = require('axios');
 const fs = require('fs');
@@ -20,12 +24,25 @@ const { setupDashboard, handleMessage, handleConnection } = require("./lib/dashb
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+// CORS Configuration - Allow external frontend access
+const corsOrigin = process.env.CORS_ORIGIN || '*';
+const corsOptions = {
+  origin: corsOrigin,
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  // Only enable credentials when a specific origin is set (not wildcard)
+  credentials: corsOrigin !== '*'
+};
+app.use(cors(corsOptions));
+
 // Detect platform
 let platform = process.env.REPLIT_USER ? "REPLIT"
   : process.env.DYNO ? 'HEROKU'
   : process.env.KOYEB_APP_ID ? 'KOYEB'
   : process.env.RENDER ? 'RENDER'
   : process.env.RAILWAY_SERVICE_NAME ? 'RAILWAY'
+  : process.env.P_SERVER_UUID ? 'PTERODACTYL'  // Pterodactyl panel detection
+  : process.env.PTERODACTYL ? 'PTERODACTYL'     // Alternative env var
   : 'VPS';
 
 console.log("╔════════════════════════════════════════╗");
@@ -33,6 +50,7 @@ console.log("║     LD7 V1 MULTI-USER MODE          ║");
 console.log("╠════════════════════════════════════════╣");
 console.log("║  Running on platform:", platform.padEnd(17), "║");
 console.log("║  Port:", String(PORT).padEnd(30), "║");
+console.log("║  CORS:", (process.env.CORS_ORIGIN || 'All origins').substring(0, 28).padEnd(30), "║");
 console.log("╚════════════════════════════════════════╝");
 
 // Setup dashboard
@@ -41,7 +59,16 @@ setupDashboard(app);
 // Keep-alive for cloud platforms
 let deployedUrl = '';
 
-if (platform === "KOYEB" || platform === "RENDER" || platform === "HEROKU") {
+// Pterodactyl uses SERVER_IP and SERVER_PORT, or custom endpoint URL
+if (platform === "PTERODACTYL") {
+  // For Pterodactyl, endpoint URL should be set via environment variable
+  if (process.env.ENDPOINT_URL) {
+    deployedUrl = process.env.ENDPOINT_URL;
+    console.log("📍 Pterodactyl endpoint URL:", deployedUrl);
+  }
+}
+
+if (platform === "KOYEB" || platform === "RENDER" || platform === "HEROKU" || platform === "PTERODACTYL") {
   async function pingServer() {
     if (!deployedUrl) return;
     try {

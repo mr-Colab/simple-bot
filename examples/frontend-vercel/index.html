@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Bot Pairing</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 450px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+    }
+    
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-bottom: 30px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 10px;
+    }
+    
+    .stat {
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #667eea;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 500;
+    }
+    
+    input {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    button {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .result {
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      display: none;
+    }
+    
+    .result.success {
+      display: block;
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .result.error {
+      display: block;
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    .pairing-code {
+      font-size: 32px;
+      font-weight: bold;
+      letter-spacing: 5px;
+      margin: 15px 0;
+      padding: 15px;
+      background: #667eea;
+      color: white;
+      border-radius: 10px;
+    }
+    
+    .instructions {
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    
+    .status-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+    
+    .status-dot.online { background: #28a745; }
+    .status-dot.offline { background: #dc3545; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🤖 WhatsApp Bot</h1>
+    <p class="subtitle">Connect your WhatsApp to the bot</p>
+    
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value" id="connectedCount">-</div>
+        <div class="stat-label">Connected Bots</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="serverStatus">
+          <span class="status-dot offline"></span>
+        </div>
+        <div class="stat-label">Server Status</div>
+      </div>
+    </div>
+    
+    <form id="pairingForm">
+      <div class="form-group">
+        <label for="phoneNumber">Phone Number (with country code)</label>
+        <input 
+          type="text" 
+          id="phoneNumber" 
+          placeholder="e.g., 1234567890"
+          required
+        >
+      </div>
+      <button type="submit" id="submitBtn">Get Pairing Code</button>
+    </form>
+    
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    // ============================================
+    // CONFIGURATION - Change this to your API URL
+    // ============================================
+    const API_BASE_URL = 'https://your-pterodactyl-server.com:8000';
+    // ============================================
+
+    // Load server status on page load
+    async function loadStatus() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/status`);
+        const data = await response.json();
+        
+        if (data.success) {
+          document.getElementById('connectedCount').textContent = data.connectedBots;
+          document.getElementById('serverStatus').innerHTML = 
+            '<span class="status-dot online"></span> Online';
+        }
+      } catch (error) {
+        document.getElementById('serverStatus').innerHTML = 
+          '<span class="status-dot offline"></span> Offline';
+        console.error('Failed to load status:', error);
+      }
+    }
+
+    // Handle form submission
+    document.getElementById('pairingForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const phoneNumber = document.getElementById('phoneNumber').value.trim();
+      const submitBtn = document.getElementById('submitBtn');
+      const resultDiv = document.getElementById('result');
+      
+      // Disable button
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Requesting...';
+      resultDiv.className = 'result';
+      resultDiv.style.display = 'none';
+      
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/pair`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ phoneNumber }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.pairingCode) {
+          resultDiv.className = 'result success';
+          resultDiv.innerHTML = `
+            <div>✅ Pairing Code Generated!</div>
+            <div class="pairing-code">${data.pairingCode}</div>
+            <div class="instructions">
+              Open WhatsApp → Settings → Linked Devices → Link a Device<br>
+              Enter the code above to connect
+            </div>
+          `;
+        } else if (data.status === 'already_connected') {
+          resultDiv.className = 'result success';
+          resultDiv.innerHTML = `
+            <div>✅ Already Connected!</div>
+            <div class="instructions">
+              This number is already connected to the bot.
+              ${data.name ? `<br>Name: ${data.name}` : ''}
+            </div>
+          `;
+        } else {
+          resultDiv.className = 'result error';
+          resultDiv.innerHTML = `❌ ${data.error || data.message || 'Failed to get pairing code'}`;
+        }
+        
+        // Refresh status
+        loadStatus();
+        
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `❌ Connection failed. Make sure the API server is running.`;
+        console.error('Error:', error);
+      }
+      
+      // Re-enable button
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Get Pairing Code';
+    });
+
+    // Load status on page load
+    loadStatus();
+    
+    // Refresh status every 10 seconds
+    setInterval(loadStatus, 10000);
+  </script>
+</body>
+</html>
