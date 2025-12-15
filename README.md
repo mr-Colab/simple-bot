@@ -14,6 +14,20 @@
    <br> 
 <a href="https://github.com/A-S-W-I-N-S-P-A-R-K-Y/X--BOT--MD/fork"><img title="FORK REPO" src="https://img.shields.io/badge/FORK REPO-h?color=black&style=for-the-badge&logo=stackshare"></a>
 
+### MULTI-USER MODE
+
+The bot supports multi-user mode, allowing you to manage multiple WhatsApp bot instances from a single deployment.
+
+**To use Multi-User Mode:**
+```bash
+npm run multi
+```
+
+**API Access:**
+For external API access (perfect for Pterodactyl deployments), see the [API Guide](API_GUIDE.md) for detailed documentation on how to:
+- Create bot sessions via API
+- Manage sessions remotely
+- Secure API endpoints with API keys
 
 
 ### AUTHENTICATION
