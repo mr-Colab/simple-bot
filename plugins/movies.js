@@ -395,20 +395,18 @@ async function downloadAndSendFile(client, m, downloadUrl, filename, caption, ma
         const stats = fs.statSync(tmpFilePath);
         const fileSizeMB = stats.size / (1024 * 1024);
         
-        // Read file for sending
-        const fileBuffer = fs.readFileSync(tmpFilePath);
-        
-        // Send as document if > maxSizeMB, otherwise as video
+        // Send directly from file path (no memory buffer) to avoid doubling disk/memory usage
+        // Use { url: filePath } format which baileys supports for streaming
         if (fileSizeMB > maxSizeMB) {
             await client.sendMessage(m.jid, {
-                document: fileBuffer,
+                document: { url: tmpFilePath },
                 mimetype: 'video/mp4',
                 fileName: filename,
                 caption: caption
             }, { quoted: m });
         } else {
             await client.sendMessage(m.jid, {
-                video: fileBuffer,
+                video: { url: tmpFilePath },
                 caption: caption
             }, { quoted: m });
         }
