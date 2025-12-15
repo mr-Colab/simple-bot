@@ -286,6 +286,46 @@ function cleanupSessions() {
 // Clean up sessions periodically
 setInterval(cleanupSessions, 60000);
 
+/**
+ * Extract message ID from a sent message object
+ * @param {Object} sentMsg - The message object returned by sendMessage/reply
+ * @returns {string|undefined} The message ID or undefined if not available
+ */
+function getMsgId(sentMsg) {
+    return sentMsg?.key?.id;
+}
+
+/**
+ * Get the quoted message ID from the message context
+ * Uses stanzaId (from contextInfo) or key.id as fallback
+ * @param {Object} quoted - The quoted message object
+ * @returns {string|undefined} The quoted message ID or undefined
+ */
+function getQuotedMsgId(quoted) {
+    return quoted?.stanzaId || quoted?.key?.id;
+}
+
+/**
+ * Send a message with optional thumbnail and return the message ID
+ * @param {Object} client - The WhatsApp client
+ * @param {Object} m - The message context
+ * @param {string} caption - The message caption/text
+ * @param {string|null} thumbnailUrl - Optional thumbnail URL
+ * @returns {Promise<string|undefined>} The sent message ID
+ */
+async function sendMovieMessage(client, m, caption, thumbnailUrl) {
+    let sentMsg;
+    if (thumbnailUrl) {
+        sentMsg = await client.sendMessage(m.jid, {
+            image: { url: thumbnailUrl },
+            caption: caption
+        }, { quoted: m });
+    } else {
+        sentMsg = await m.reply(caption);
+    }
+    return getMsgId(sentMsg);
+}
+
 // ==================== MOVIE SEARCH COMMAND ====================
 Sparky({
     name: "movie|film|movies",
@@ -324,7 +364,7 @@ Sparky({
 
         // Send message and capture the message ID for reply validation
         const sentMsg = await m.reply(message);
-        const botMsgId = sentMsg?.key?.id;
+        const botMsgId = getMsgId(sentMsg);
         
         movieSessions.set(sessionKey, {
             type: 'search',
@@ -362,7 +402,7 @@ Sparky({
         
         // Validate that the reply is specifically to the bot's movie-related message
         // This prevents spam from processing unrelated reply messages with numbers
-        const quotedMsgId = m.quoted?.stanzaId || m.quoted?.key?.id;
+        const quotedMsgId = getQuotedMsgId(m.quoted);
         if (session.botMsgId && quotedMsgId !== session.botMsgId) return;
         
         const input = m.body?.trim();
@@ -421,17 +461,8 @@ Sparky({
                 caption += `*2.* VOSTFR (Sous-titré)\n`;
                 caption += `\n_Répondez 1 ou 2 pour choisir._`;
 
-                // Send with thumbnail if available and capture message ID
-                let sentMsg;
-                if (selectedMovie.thumbnail) {
-                    sentMsg = await client.sendMessage(m.jid, {
-                        image: { url: selectedMovie.thumbnail },
-                        caption: caption
-                    }, { quoted: m });
-                } else {
-                    sentMsg = await m.reply(caption);
-                }
-                const botMsgId = sentMsg?.key?.id;
+                // Send message with optional thumbnail and capture ID
+                const botMsgId = await sendMovieMessage(client, m, caption, selectedMovie.thumbnail);
 
                 // Update session for series episode selection
                 movieSessions.set(sessionKey, {
@@ -451,17 +482,8 @@ Sparky({
                     });
                     caption += `\n_Répondez avec un numéro (1-${qualities.length}) pour télécharger._`;
 
-                    // Send with thumbnail if available and capture message ID
-                    let sentMsg;
-                    if (selectedMovie.thumbnail) {
-                        sentMsg = await client.sendMessage(m.jid, {
-                            image: { url: selectedMovie.thumbnail },
-                            caption: caption
-                        }, { quoted: m });
-                    } else {
-                        sentMsg = await m.reply(caption);
-                    }
-                    const botMsgId = sentMsg?.key?.id;
+                    // Send message with optional thumbnail and capture ID
+                    const botMsgId = await sendMovieMessage(client, m, caption, selectedMovie.thumbnail);
 
                     movieSessions.set(sessionKey, {
                         type: 'details',
@@ -473,14 +495,7 @@ Sparky({
                 } else {
                     caption += `\n❌ Aucun lien de téléchargement disponible.`;
                     // Send with thumbnail if available
-                    if (selectedMovie.thumbnail) {
-                        await client.sendMessage(m.jid, {
-                            image: { url: selectedMovie.thumbnail },
-                            caption: caption
-                        }, { quoted: m });
-                    } else {
-                        await m.reply(caption);
-                    }
+                    await sendMovieMessage(client, m, caption, selectedMovie.thumbnail);
                     movieSessions.delete(sessionKey);
                 }
             }
@@ -520,7 +535,7 @@ Sparky({
 
             // Send message and capture ID
             const sentMsg = await m.reply(message);
-            const botMsgId = sentMsg?.key?.id;
+            const botMsgId = getMsgId(sentMsg);
 
             // Update session for episode selection
             movieSessions.set(sessionKey, {
