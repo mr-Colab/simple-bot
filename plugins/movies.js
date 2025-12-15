@@ -45,6 +45,100 @@ async function searchMovies(query, page = 1) {
 }
 
 /**
+ * Check if a URL/title indicates a TV series
+ * @param {string} url - URL to check
+ * @param {string} title - Title to check
+ * @returns {boolean} True if it's a series
+ */
+function isSeries(url, title) {
+    const seriesIndicators = ['saison', 'season', 'série', 'series'];
+    const lowerUrl = (url || '').toLowerCase();
+    const lowerTitle = (title || '').toLowerCase();
+    return seriesIndicators.some(ind => lowerUrl.includes(ind) || lowerTitle.includes(ind));
+}
+
+/**
+ * Get series details including episodes from a series page URL
+ * @param {string} url - Series page URL
+ * @returns {Promise<Object>} Series details with episodes
+ */
+async function getSeriesDetail(url) {
+    const html = await axios.get(url, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        },
+        timeout: 30000
+    });
+    const $ = cheerio.load(html.data);
+
+    const title = $('#s-list li').first().text().replace('Titre Original:', '').trim() || 
+                  $('title').text().replace(/série|en streaming.*$/gi, '').trim();
+    const genres = $('#s-list li:contains("Genre:") a').map((i, el) => $(el).text().trim()).get();
+    const actors = $('#s-list li:contains("Acteurs:") a').map((i, el) => $(el).text().trim()).get();
+    const version = $('li:contains("Version:") a').text().trim();
+    const quality = $('li:contains("Qualité:") a').text().trim();
+
+    // Extract episodes data from script
+    const scripts = $('script').toArray().map(el => $(el).html() || '').join('\n');
+    
+    // Look for episodesData variable
+    const episodesMatch = scripts.match(/var\s+episodesData\s*=\s*\{([\s\S]*?)\n\s*\};/);
+    
+    const episodes = { vf: {}, vostfr: {} };
+    
+    if (episodesMatch) {
+        // Parse VF episodes
+        const vfMatch = episodesMatch[1].match(/vf:\s*\{([\s\S]*?)\},\s*vostfr/);
+        if (vfMatch) {
+            const vfContent = vfMatch[1];
+            const epRegex = /(\d+):\s*\{vidzy:"([^"]*)"/g;
+            let epMatch;
+            while ((epMatch = epRegex.exec(vfContent))) {
+                const epNum = parseInt(epMatch[1]);
+                const vidzyUrl = epMatch[2];
+                if (epNum > 0 && vidzyUrl) {
+                    episodes.vf[epNum] = vidzyUrl.replace('/embed-', '/d/');
+                }
+            }
+        }
+        
+        // Parse VOSTFR episodes
+        const vostfrMatch = episodesMatch[1].match(/vostfr:\s*\{([\s\S]*?)\}\s*$/);
+        if (vostfrMatch) {
+            const vostfrContent = vostfrMatch[1];
+            const epRegex = /(\d+):\s*\{vidzy:"([^"]*)"/g;
+            let epMatch;
+            while ((epMatch = epRegex.exec(vostfrContent))) {
+                const epNum = parseInt(epMatch[1]);
+                const vidzyUrl = epMatch[2];
+                if (epNum > 0 && vidzyUrl) {
+                    episodes.vostfr[epNum] = vidzyUrl.replace('/embed-', '/d/');
+                }
+            }
+        }
+    }
+
+    // Count available episodes
+    const vfEpisodes = Object.keys(episodes.vf).map(Number).sort((a, b) => a - b);
+    const vostfrEpisodes = Object.keys(episodes.vostfr).map(Number).sort((a, b) => a - b);
+
+    return {
+        url,
+        title,
+        genres,
+        actors,
+        version,
+        quality,
+        isSeries: true,
+        episodes,
+        vfEpisodes,
+        vostfrEpisodes,
+        totalVf: vfEpisodes.length,
+        totalVostfr: vostfrEpisodes.length
+    };
+}
+
+/**
  * Get movie details from a movie page URL
  * @param {string} url - Movie page URL
  * @returns {Promise<Object>} Movie details object
@@ -69,6 +163,12 @@ async function getMovieDetail(url) {
     const language = $('li:contains("Langue d\'origine") a').text().trim();
 
     const script = $('script').toArray().map(el => $(el).html()).join('\n');
+    
+    // Check if this is a series (has episodesData)
+    if (script.includes('episodesData')) {
+        return await getSeriesDetail(url);
+    }
+    
     const regex = /case\s+'([^']+)':\s*url\s*=\s*'([^']+)'/g;
     const player = {};
     let match;
@@ -87,7 +187,8 @@ async function getMovieDetail(url) {
         releaseYear,
         budget,
         language,
-        player
+        player,
+        isSeries: false
     };
 }
 
@@ -271,23 +372,15 @@ Sparky({
 
             await m.react('⏳');
 
-            // Get movie details
+            // Get movie/series details
             const details = await getMovieDetail(selectedMovie.url);
 
             if (!details || !details.title) {
                 await m.react('❌');
-                return await m.reply('❌ Impossible de récupérer les détails du film.');
+                return await m.reply('❌ Impossible de récupérer les détails.');
             }
 
-            // Update session to movie details stage
-            movieSessions.set(sessionKey, {
-                type: 'details',
-                movie: details,
-                thumbnail: selectedMovie.thumbnail,
-                timestamp: Date.now()
-            });
-
-            // Format movie details with thumbnail
+            // Format details with thumbnail
             let caption = `🎬 *${details.title}*\n\n`;
             
             if (details.genres && details.genres.length > 0) {
@@ -309,17 +402,43 @@ Sparky({
                 caption += `🌐 *Version:* ${details.version}\n`;
             }
 
-            // Show available qualities
-            if (details.player && Object.keys(details.player).length > 0) {
-                const qualities = Object.keys(details.player);
-                caption += `\n📥 *Qualités disponibles:*\n`;
-                qualities.forEach((q, i) => {
-                    caption += `*${i + 1}.* ${q}\n`;
+            // Check if it's a series
+            if (details.isSeries) {
+                // Update session for series episode selection
+                movieSessions.set(sessionKey, {
+                    type: 'series_version',
+                    series: details,
+                    thumbnail: selectedMovie.thumbnail,
+                    timestamp: Date.now()
                 });
-                caption += `\n_Répondez avec un numéro (1-${qualities.length}) pour télécharger._`;
+
+                caption += `\n📺 *C'est une série TV!*\n`;
+                caption += `📊 Épisodes VF: ${details.totalVf}\n`;
+                caption += `📊 Épisodes VOSTFR: ${details.totalVostfr}\n`;
+                caption += `\n_Choisissez la version:_\n`;
+                caption += `*1.* VF (Français)\n`;
+                caption += `*2.* VOSTFR (Sous-titré)\n`;
+                caption += `\n_Répondez 1 ou 2 pour choisir._`;
             } else {
-                caption += `\n❌ Aucun lien de téléchargement disponible.`;
-                movieSessions.delete(sessionKey);
+                // It's a movie - show quality options
+                movieSessions.set(sessionKey, {
+                    type: 'details',
+                    movie: details,
+                    thumbnail: selectedMovie.thumbnail,
+                    timestamp: Date.now()
+                });
+
+                if (details.player && Object.keys(details.player).length > 0) {
+                    const qualities = Object.keys(details.player);
+                    caption += `\n📥 *Qualités disponibles:*\n`;
+                    qualities.forEach((q, i) => {
+                        caption += `*${i + 1}.* ${q}\n`;
+                    });
+                    caption += `\n_Répondez avec un numéro (1-${qualities.length}) pour télécharger._`;
+                } else {
+                    caption += `\n❌ Aucun lien de téléchargement disponible.`;
+                    movieSessions.delete(sessionKey);
+                }
             }
 
             // Send with thumbnail if available
@@ -333,6 +452,123 @@ Sparky({
             }
             
             await m.react('✅');
+            return;
+        }
+
+        // Handle series version selection (VF or VOSTFR)
+        if (session.type === 'series_version') {
+            if (num !== 1 && num !== 2) return;
+
+            const version = num === 1 ? 'vf' : 'vostfr';
+            const versionName = num === 1 ? 'VF' : 'VOSTFR';
+            const episodes = session.series.episodes[version];
+            const episodeNumbers = Object.keys(episodes).map(Number).sort((a, b) => a - b);
+
+            if (episodeNumbers.length === 0) {
+                await m.react('❌');
+                movieSessions.delete(sessionKey);
+                return await m.reply(`❌ Aucun épisode disponible en ${versionName}.`);
+            }
+
+            // Update session for episode selection
+            movieSessions.set(sessionKey, {
+                type: 'series_episode',
+                series: session.series,
+                version: version,
+                versionName: versionName,
+                episodes: episodes,
+                episodeNumbers: episodeNumbers,
+                thumbnail: session.thumbnail,
+                timestamp: Date.now()
+            });
+
+            let message = `📺 *${session.series.title}* - ${versionName}\n\n`;
+            message += `📊 *${episodeNumbers.length} épisodes disponibles*\n\n`;
+            
+            // Show episodes in groups if many
+            if (episodeNumbers.length <= 20) {
+                episodeNumbers.forEach(ep => {
+                    message += `*${ep}.* Épisode ${ep}\n`;
+                });
+            } else {
+                message += `Épisodes: ${episodeNumbers[0]} - ${episodeNumbers[episodeNumbers.length - 1]}\n`;
+            }
+            
+            message += `\n_Répondez avec le numéro de l'épisode à télécharger._`;
+
+            await m.reply(message);
+            await m.react('✅');
+            return;
+        }
+
+        // Handle series episode selection
+        if (session.type === 'series_episode') {
+            if (!session.episodeNumbers.includes(num)) {
+                return await m.reply(`❌ Épisode ${num} non disponible. Épisodes disponibles: ${session.episodeNumbers.join(', ')}`);
+            }
+
+            const downloadUrl = session.episodes[num];
+            if (!downloadUrl) {
+                await m.react('❌');
+                return await m.reply('❌ Lien de téléchargement non disponible pour cet épisode.');
+            }
+
+            await m.react('⏳');
+
+            // Get download info
+            const downloadInfo = await getDownloadInfo(downloadUrl);
+
+            if (!downloadInfo || !downloadInfo.download) {
+                await m.react('❌');
+                movieSessions.delete(sessionKey);
+                return await m.reply('❌ Impossible de récupérer le lien de téléchargement.');
+            }
+
+            const fileSizeBytes = parseSizeToBytes(downloadInfo.size);
+            const MAX_SIZE_MB = 50;
+
+            // Clear session
+            movieSessions.delete(sessionKey);
+
+            // Send progress message
+            await m.reply(`📥 *Téléchargement en cours...*\n\n📺 *${session.series.title}*\n🎬 *Épisode ${num}* (${session.versionName})\n📁 *Fichier:* ${downloadInfo.filename}\n📏 *Taille:* ${downloadInfo.size}\n\n⏳ Veuillez patienter...`);
+
+            try {
+                // Download the file
+                const response = await axios({
+                    method: 'GET',
+                    url: downloadInfo.download,
+                    responseType: 'arraybuffer',
+                    timeout: DOWNLOAD_TIMEOUT
+                });
+
+                const buffer = Buffer.from(response.data);
+                const actualSizeMB = buffer.length / (1024 * 1024);
+
+                // Send as document if > 50MB, otherwise as video
+                const caption = `📺 *${session.series.title}*\n🎬 *Épisode ${num}* (${session.versionName})\n📏 *Taille:* ${formatBytes(buffer.length)}`;
+                
+                if (actualSizeMB > MAX_SIZE_MB) {
+                    await client.sendMessage(m.jid, {
+                        document: buffer,
+                        mimetype: 'video/mp4',
+                        fileName: downloadInfo.filename || `${session.series.title}_E${num}.mp4`,
+                        caption: caption
+                    }, { quoted: m });
+                } else {
+                    await client.sendMessage(m.jid, {
+                        video: buffer,
+                        caption: caption
+                    }, { quoted: m });
+                }
+
+                await m.react('✅');
+
+            } catch (downloadError) {
+                console.error('Download Error:', downloadError);
+                await m.reply(`❌ Échec du téléchargement direct.\n\n🔗 *Lien:*\n${downloadInfo.download}`);
+                await m.react('⚠️');
+            }
             return;
         }
 
