@@ -336,7 +336,12 @@ Sparky({
     category: "downloader",
 }, async ({ m, client, args }) => {
     try {
-        const query = args || m.quoted?.text;
+        // Skip if message is from the bot itself to prevent recursive processing
+        if (m.isSelf) return;
+
+        // Only use args as the query - don't fall back to quoted text to prevent
+        // accidental searches using bot's own responses as queries
+        const query = args?.trim();
         
         if (!query) {
             return await m.reply('🎬 *Recherche de Film*\n\nEntrez le nom du film à rechercher.\nExemple: .movie Avengers');
@@ -392,6 +397,9 @@ Sparky({
     desc: "Handle movie selection responses",
 }, async ({ m, client, args }) => {
     try {
+        // Skip if message is from the bot itself to prevent recursive processing
+        if (m.isSelf) return;
+
         // Quick exit if no session exists for this user (performance optimization)
         const sessionKey = m.sender;
         if (!movieSessions.has(sessionKey)) return;
@@ -715,6 +723,9 @@ Sparky({
     category: "downloader",
 }, async ({ m, client, args }) => {
     try {
+        // Skip if message is from the bot itself to prevent recursive processing
+        if (m.isSelf) return;
+
         const url = args || m.quoted?.text;
         
         if (!url) {
@@ -790,6 +801,9 @@ Sparky({
     category: "downloader",
 }, async ({ m, client, args }) => {
     try {
+        // Skip if message is from the bot itself to prevent recursive processing
+        if (m.isSelf) return;
+
         const url = args || m.quoted?.text;
         
         if (!url) {
