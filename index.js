@@ -22,6 +22,7 @@
     externalPlugins
   } = require("./lib");
   const config = require("./config");
+  const { initPluginWatcher } = require("./lib/pluginWatcher");
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
   
   // Socket initialization delay to ensure WebSocket connection is established
@@ -173,26 +174,9 @@
           }
         }, 3000); // Wait 3 seconds after connection opens
 
-        // Load all plugins from plugins folder
-        try {
-          const pluginFiles = fs.readdirSync("./plugins")
-            .filter(file => path.extname(file) === '.js');
-          
-          console.log(`Loading ${pluginFiles.length} plugin(s)...`);
-          
-          pluginFiles.forEach(file => {
-            try {
-              require("./plugins/" + file);
-              console.log(`✅ Loaded plugin: ${file}`);
-            } catch (error) {
-              console.error(`❌ Failed to load plugin ${file}:`, error.message);
-            }
-          });
-          
-          console.log(`Total plugins loaded: ${pluginFiles.length}`);
-        } catch (error) {
-          console.error("❌ Error loading plugins:", error.message);
-        }
+        // Initialize plugin watcher (loads existing plugins and watches for new ones)
+        initPluginWatcher();
+        console.log("👀 New plugins will be loaded automatically without restart");
 
         // Build startup message
         var startupMessage = `*LD7 V1 STARTED! *

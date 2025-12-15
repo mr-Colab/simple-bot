@@ -16,6 +16,7 @@ const path = require('path');
 const config = require("./config");
 const sessionManager = require("./lib/sessionManager");
 const { setupDashboard, handleMessage, handleConnection } = require("./lib/dashboard");
+const { initPluginWatcher } = require("./lib/pluginWatcher");
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -61,33 +62,6 @@ if (platform === "KOYEB" || platform === "RENDER" || platform === "HEROKU") {
   });
 
   cron.schedule("*/5 * * * *", pingServer);
-}
-
-// Load plugins once at startup
-function loadPlugins() {
-  const pluginsPath = path.join(__dirname, 'plugins');
-  
-  if (!fs.existsSync(pluginsPath)) {
-    console.log("⚠️ Plugins folder not found");
-    return;
-  }
-
-  const pluginFiles = fs.readdirSync(pluginsPath)
-    .filter(file => path.extname(file) === '.js');
-
-  console.log(`\n📦 Loading ${pluginFiles.length} plugin(s)...`);
-
-  let loaded = 0;
-  pluginFiles.forEach(file => {
-    try {
-      require(path.join(pluginsPath, file));
-      loaded++;
-    } catch (error) {
-      console.error(`❌ Failed to load ${file}:`, error.message);
-    }
-  });
-
-  console.log(`✅ Loaded ${loaded}/${pluginFiles.length} plugins\n`);
 }
 
 // Auto-start existing sessions from database
@@ -156,11 +130,15 @@ server.listen(PORT, async () => {
 
   // Initialize
   await syncDatabase();
-  loadPlugins();
+  
+  // Initialize plugin watcher (loads existing plugins and watches for new ones)
+  initPluginWatcher();
+  
   await autoStartSessions();
 
   console.log("═".repeat(50));
   console.log("🚀 LD7 V1 Multi-User is ready!");
+  console.log("   New plugins will be loaded automatically without restart");
   console.log("═".repeat(50));
 });
 
