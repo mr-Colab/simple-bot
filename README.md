@@ -34,6 +34,18 @@
     <br>
 <a href='https://github.com/A-S-W-I-N-S-P-A-R-K-Y/X--BOT--MD/wiki/deploy%E2%80%90vps' target="_blank"><img alt='PANEL' src='https://img.shields.io/badge/PANEL-100000?style=for-the-badge&logo=pterodactyl&logoColor=white&labelColor=black&color=black&logoSize=auto'/></a>
 
+#### DEPLOY TO PTERODACTYL PANEL
+
+1. **Import the Egg**: Use `pterodactyl-egg.json` from this repository
+2. **Create a Server**: Select the "LD7 V1 WhatsApp Bot" egg
+3. **Configure Variables**:
+   - `PORT`: Your allocated port (e.g., 8000)
+   - `ENDPOINT_URL`: Your public URL for the dashboard
+   - `DATABASE_URL`: PostgreSQL connection (optional)
+4. **Start the Server**: Dashboard will be available at your endpoint URL
+
+📖 **Full Guide**: See [PTERODACTYL_GUIDE.md](./PTERODACTYL_GUIDE.md) for detailed instructions
+
 #### DEPLOY TO HEROKU 
 
 1. If You don't have a account in Heroku. Create a account in heroku.

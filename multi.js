@@ -26,6 +26,8 @@ let platform = process.env.REPLIT_USER ? "REPLIT"
   : process.env.KOYEB_APP_ID ? 'KOYEB'
   : process.env.RENDER ? 'RENDER'
   : process.env.RAILWAY_SERVICE_NAME ? 'RAILWAY'
+  : process.env.P_SERVER_UUID ? 'PTERODACTYL'  // Pterodactyl panel detection
+  : process.env.PTERODACTYL ? 'PTERODACTYL'     // Alternative env var
   : 'VPS';
 
 console.log("╔════════════════════════════════════════╗");
@@ -41,7 +43,16 @@ setupDashboard(app);
 // Keep-alive for cloud platforms
 let deployedUrl = '';
 
-if (platform === "KOYEB" || platform === "RENDER" || platform === "HEROKU") {
+// Pterodactyl uses SERVER_IP and SERVER_PORT, or custom endpoint URL
+if (platform === "PTERODACTYL") {
+  // For Pterodactyl, endpoint URL should be set via environment variable
+  if (process.env.ENDPOINT_URL) {
+    deployedUrl = process.env.ENDPOINT_URL;
+    console.log("📍 Pterodactyl endpoint URL:", deployedUrl);
+  }
+}
+
+if (platform === "KOYEB" || platform === "RENDER" || platform === "HEROKU" || platform === "PTERODACTYL") {
   async function pingServer() {
     if (!deployedUrl) return;
     try {

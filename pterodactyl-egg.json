@@ -1,0 +1,142 @@
+{
+    "_comment": "LD7 V1 WhatsApp Bot - Pterodactyl Egg Configuration",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2024-01-01T00:00:00+00:00",
+    "name": "LD7 V1 WhatsApp Bot",
+    "author": "mr-Colab",
+    "description": "LD7 V1 is a powerful WhatsApp Multi-User Bot with dashboard for managing multiple bot instances. Deploy and connect multiple WhatsApp accounts through a single panel.",
+    "features": null,
+    "docker_images": {
+        "Node.js 20": "ghcr.io/parkervcp/yolks:nodejs_20"
+    },
+    "file_denylist": [],
+    "startup": "npm run multi",
+    "config": {
+        "files": "{}",
+        "startup": "{\r\n    \"done\": \"Dashboard running at\"\r\n}",
+        "logs": "{}",
+        "stop": "^C"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/bash\napt update\napt install -y git ffmpeg\n\nif [ -d \"/mnt/server/.git\" ]; then\n    cd /mnt/server\n    git pull\nelse\n    git clone https://github.com/mr-Colab/simple-bot.git /mnt/server\nfi\n\ncd /mnt/server\nnpm install\n",
+            "container": "node:20-alpine",
+            "entrypoint": "ash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Port",
+            "description": "The port the bot dashboard will listen on",
+            "env_variable": "PORT",
+            "default_value": "8000",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|integer|between:1024,65535",
+            "field_type": "text"
+        },
+        {
+            "name": "Phone Number",
+            "description": "Your WhatsApp phone number with country code (e.g., 919876543210). Leave empty for multi-user mode.",
+            "env_variable": "PHONE_NUMBER",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|max:20",
+            "field_type": "text"
+        },
+        {
+            "name": "Database URL",
+            "description": "PostgreSQL database URL for session backup (e.g., postgresql://user:pass@host:5432/db)",
+            "env_variable": "DATABASE_URL",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|max:500",
+            "field_type": "text"
+        },
+        {
+            "name": "Endpoint URL",
+            "description": "Public URL for the bot dashboard (e.g., https://your-domain.com:8000). Used for keep-alive pings.",
+            "env_variable": "ENDPOINT_URL",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|max:200",
+            "field_type": "text"
+        },
+        {
+            "name": "Command Prefix",
+            "description": "Prefix for bot commands (e.g., . or ! or #)",
+            "env_variable": "HANDLERS",
+            "default_value": ".",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|max:5",
+            "field_type": "text"
+        },
+        {
+            "name": "Sudo Numbers",
+            "description": "Owner/admin phone numbers with country code, separated by commas",
+            "env_variable": "SUDO",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|max:200",
+            "field_type": "text"
+        },
+        {
+            "name": "Work Type",
+            "description": "Bot mode: 'public' (everyone can use) or 'private' (only sudo users)",
+            "env_variable": "WORK_TYPE",
+            "default_value": "public",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|in:public,private",
+            "field_type": "text"
+        },
+        {
+            "name": "Pterodactyl Mode",
+            "description": "Set to 'true' to enable Pterodactyl-specific features",
+            "env_variable": "PTERODACTYL",
+            "default_value": "true",
+            "user_viewable": false,
+            "user_editable": false,
+            "rules": "required|string|in:true,false",
+            "field_type": "text"
+        },
+        {
+            "name": "GitHub Token",
+            "description": "GitHub Personal Access Token for session backup (optional)",
+            "env_variable": "GITHUB_TOKEN",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|max:200",
+            "field_type": "text"
+        },
+        {
+            "name": "GitHub Owner",
+            "description": "GitHub username for session backup repository",
+            "env_variable": "GITHUB_OWNER",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|max:50",
+            "field_type": "text"
+        },
+        {
+            "name": "GitHub Repo",
+            "description": "GitHub repository name for session backup",
+            "env_variable": "GITHUB_REPO",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|max:100",
+            "field_type": "text"
+        }
+    ]
+}
