@@ -1,12 +1,19 @@
 const { Sparky, isPublic } = require("../lib");
-const { getString } = require("./pluginsCore");
 const axios = require('axios');
 const qs = require('qs');
 const cheerio = require('cheerio');
-const lang = getString('download');
 
 // Movie API base URL
 const MOVIE_API_BASE = 'https://fs-miroir13.lol';
+
+// Download timeout (10 minutes)
+const DOWNLOAD_TIMEOUT = 10 * 60 * 1000;
+
+// Store active movie sessions for interactive selection
+const movieSessions = new Map();
+
+// Session timeout (5 minutes)
+const SESSION_TIMEOUT = 5 * 60 * 1000;
 
 /**
  * Search for movies by query
@@ -70,6 +77,7 @@ async function getMovieDetail(url) {
         player[match[1]] = match[2]?.replace('/embed-', '/d/');
     }
     return {
+        url,
         title,
         genres,
         director,
@@ -117,18 +125,78 @@ async function getDownloadInfo(url) {
     };
 }
 
+/**
+ * Get the best quality link (prioritize haute > moyenne > basse)
+ * @param {Object} player - Player object with quality links
+ * @returns {Object} Best quality info {name, url}
+ */
+function getBestQuality(player) {
+    const priorities = ['haute', 'moyenne', 'basse'];
+    for (const quality of priorities) {
+        if (player[quality]) {
+            return { name: quality, url: player[quality] };
+        }
+    }
+    // Fallback to first available
+    const firstKey = Object.keys(player)[0];
+    return firstKey ? { name: firstKey, url: player[firstKey] } : null;
+}
+
+/**
+ * Parse file size string to bytes
+ * @param {string} sizeStr - Size string like "803.5 MB"
+ * @returns {number} Size in bytes
+ */
+function parseSizeToBytes(sizeStr) {
+    if (!sizeStr) return 0;
+    const match = sizeStr.match(/([\d.]+)\s*(KB|MB|GB|TB)/i);
+    if (!match) return 0;
+    const value = parseFloat(match[1]);
+    const unit = match[2].toUpperCase();
+    const multipliers = { KB: 1024, MB: 1024 * 1024, GB: 1024 * 1024 * 1024, TB: 1024 * 1024 * 1024 * 1024 };
+    return value * (multipliers[unit] || 1);
+}
+
+/**
+ * Format bytes to human readable
+ * @param {number} bytes - Size in bytes
+ * @returns {string} Formatted size
+ */
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/**
+ * Clean up expired sessions
+ */
+function cleanupSessions() {
+    const now = Date.now();
+    for (const [key, session] of movieSessions.entries()) {
+        if (now - session.timestamp > SESSION_TIMEOUT) {
+            movieSessions.delete(key);
+        }
+    }
+}
+
+// Clean up sessions periodically
+setInterval(cleanupSessions, 60000);
+
 // ==================== MOVIE SEARCH COMMAND ====================
 Sparky({
     name: "movie|film|movies",
     fromMe: isPublic,
-    desc: "Search for movies",
+    desc: "Search for movies - interactive selection",
     category: "downloader",
 }, async ({ m, client, args }) => {
     try {
         const query = args || m.quoted?.text;
         
         if (!query) {
-            return await m.reply('🎬 *Movie Search*\n\nPlease provide a movie name to search.\nExample: .movie Avengers');
+            return await m.reply('🎬 *Recherche de Film*\n\nEntrez le nom du film à rechercher.\nExemple: .movie Avengers');
         }
 
         await m.react('🔎');
@@ -137,21 +205,28 @@ Sparky({
 
         if (!results || results.length === 0) {
             await m.react('❌');
-            return await m.reply('❌ No movies found for your search query.');
+            return await m.reply('❌ Aucun film trouvé pour votre recherche.');
         }
 
-        // Format search results
-        let message = `🎬 *Movie Search Results for "${query}"*\n\n`;
+        // Store session for this user
+        const sessionKey = m.sender;
+        const limitedResults = results.slice(0, 10);
         
-        results.slice(0, 10).forEach((movie, index) => {
-            message += `*${index + 1}.* ${movie.title}\n`;
-            if (movie.url) {
-                message += `   🔗 ${movie.url}\n`;
-            }
-            message += '\n';
+        movieSessions.set(sessionKey, {
+            type: 'search',
+            results: limitedResults,
+            query: query,
+            timestamp: Date.now()
         });
 
-        message += `\n_Use .movieinfo <url> to get more details about a movie._`;
+        // Format search results
+        let message = `🎬 *Résultats pour "${query}"*\n\n`;
+        
+        limitedResults.forEach((movie, index) => {
+            message += `*${index + 1}.* ${movie.title}\n`;
+        });
+
+        message += `\n_Répondez avec un numéro (1-${limitedResults.length}) pour voir les détails du film._`;
 
         await m.reply(message);
         await m.react('✅');
@@ -159,11 +234,189 @@ Sparky({
     } catch (error) {
         console.error('Movie Search Error:', error);
         await m.react('❌');
-        await m.reply(`❌ Error: ${error.message || 'Failed to search for movies. Please try again.'}`);
+        await m.reply(`❌ Erreur: ${error.message || 'Échec de la recherche. Veuillez réessayer.'}`);
     }
 });
 
-// ==================== MOVIE INFO COMMAND ====================
+// ==================== MOVIE SELECTION HANDLER ====================
+Sparky({
+    on: true,
+    fromMe: isPublic,
+    desc: "Handle movie selection responses",
+}, async ({ m, client, args }) => {
+    try {
+        // Quick exit if no session exists for this user (performance optimization)
+        const sessionKey = m.sender;
+        if (!movieSessions.has(sessionKey)) return;
+        
+        // Check if this is a reply to a movie search
+        if (!m.quoted) return;
+        
+        const session = movieSessions.get(sessionKey);
+        if (!session) return;
+        
+        const input = m.body?.trim();
+        if (!input) return;
+        
+        // Quick check: only process if input is a number
+        const num = parseInt(input);
+        if (isNaN(num)) return;
+
+        // Handle search result selection (user picks a number 1-10)
+        if (session.type === 'search') {
+            if (num < 1 || num > session.results.length) return;
+
+            const selectedMovie = session.results[num - 1];
+            if (!selectedMovie || !selectedMovie.url) return;
+
+            await m.react('⏳');
+
+            // Get movie details
+            const details = await getMovieDetail(selectedMovie.url);
+
+            if (!details || !details.title) {
+                await m.react('❌');
+                return await m.reply('❌ Impossible de récupérer les détails du film.');
+            }
+
+            // Update session to movie details stage
+            movieSessions.set(sessionKey, {
+                type: 'details',
+                movie: details,
+                thumbnail: selectedMovie.thumbnail,
+                timestamp: Date.now()
+            });
+
+            // Format movie details with thumbnail
+            let caption = `🎬 *${details.title}*\n\n`;
+            
+            if (details.genres && details.genres.length > 0) {
+                caption += `📽️ *Genres:* ${details.genres.join(', ')}\n`;
+            }
+            if (details.director) {
+                caption += `🎬 *Réalisateur:* ${details.director}\n`;
+            }
+            if (details.actors && details.actors.length > 0) {
+                caption += `🎭 *Acteurs:* ${details.actors.slice(0, 5).join(', ')}${details.actors.length > 5 ? '...' : ''}\n`;
+            }
+            if (details.releaseYear) {
+                caption += `📅 *Année:* ${details.releaseYear}\n`;
+            }
+            if (details.quality) {
+                caption += `📺 *Qualité:* ${details.quality}\n`;
+            }
+            if (details.version) {
+                caption += `🌐 *Version:* ${details.version}\n`;
+            }
+
+            // Show available qualities
+            if (details.player && Object.keys(details.player).length > 0) {
+                const qualities = Object.keys(details.player);
+                caption += `\n📥 *Qualités disponibles:*\n`;
+                qualities.forEach((q, i) => {
+                    caption += `*${i + 1}.* ${q}\n`;
+                });
+                caption += `\n_Répondez avec un numéro (1-${qualities.length}) pour télécharger._`;
+            } else {
+                caption += `\n❌ Aucun lien de téléchargement disponible.`;
+                movieSessions.delete(sessionKey);
+            }
+
+            // Send with thumbnail if available
+            if (selectedMovie.thumbnail) {
+                await client.sendMessage(m.jid, {
+                    image: { url: selectedMovie.thumbnail },
+                    caption: caption
+                }, { quoted: m });
+            } else {
+                await m.reply(caption);
+            }
+            
+            await m.react('✅');
+            return;
+        }
+
+        // Handle quality selection (user picks quality 1, 2, 3)
+        if (session.type === 'details') {
+            const qualities = Object.keys(session.movie.player);
+            
+            if (num < 1 || num > qualities.length) return;
+
+            const selectedQuality = qualities[num - 1];
+            const downloadUrl = session.movie.player[selectedQuality];
+
+            if (!downloadUrl) return;
+
+            await m.react('⏳');
+
+            // Get download info
+            const downloadInfo = await getDownloadInfo(downloadUrl);
+
+            if (!downloadInfo || !downloadInfo.download) {
+                await m.react('❌');
+                movieSessions.delete(sessionKey);
+                return await m.reply('❌ Impossible de récupérer le lien de téléchargement. Le lien a peut-être expiré.');
+            }
+
+            const fileSizeBytes = parseSizeToBytes(downloadInfo.size);
+            const fileSizeMB = fileSizeBytes / (1024 * 1024);
+            const MAX_SIZE_MB = 50;
+
+            // Clear session
+            movieSessions.delete(sessionKey);
+
+            // Send initial progress message
+            await m.reply(`📥 *Téléchargement en cours...*\n\n📁 *Fichier:* ${downloadInfo.filename}\n📏 *Taille:* ${downloadInfo.size}\n📊 *Qualité:* ${selectedQuality}\n\n⏳ Préparation du téléchargement...`);
+
+            try {
+                // Download the file
+                const response = await axios({
+                    method: 'GET',
+                    url: downloadInfo.download,
+                    responseType: 'arraybuffer',
+                    timeout: DOWNLOAD_TIMEOUT
+                });
+
+                const buffer = Buffer.from(response.data);
+                const actualSizeMB = buffer.length / (1024 * 1024);
+
+                // Update progress
+                await m.reply(`📥 *Téléchargement terminé!*\n📏 *Taille:* ${formatBytes(buffer.length)}\n\n⏳ Envoi en cours...`);
+
+                // Send as document if > 50MB, otherwise as video
+                if (actualSizeMB > MAX_SIZE_MB) {
+                    await client.sendMessage(m.jid, {
+                        document: buffer,
+                        mimetype: 'video/mp4',
+                        fileName: downloadInfo.filename || `${session.movie.title}.mp4`,
+                        caption: `🎬 *${session.movie.title}*\n📊 *Qualité:* ${selectedQuality}\n📏 *Taille:* ${formatBytes(buffer.length)}`
+                    }, { quoted: m });
+                } else {
+                    await client.sendMessage(m.jid, {
+                        video: buffer,
+                        caption: `🎬 *${session.movie.title}*\n📊 *Qualité:* ${selectedQuality}\n📏 *Taille:* ${formatBytes(buffer.length)}`
+                    }, { quoted: m });
+                }
+
+                await m.react('✅');
+
+            } catch (downloadError) {
+                console.error('Download Error:', downloadError);
+                
+                // If download fails, send the link instead
+                await m.reply(`❌ Échec du téléchargement direct.\n\n🔗 *Lien de téléchargement:*\n${downloadInfo.download}\n\n📁 *Fichier:* ${downloadInfo.filename}\n📏 *Taille:* ${downloadInfo.size}`);
+                await m.react('⚠️');
+            }
+            return;
+        }
+
+    } catch (error) {
+        console.error('Movie Selection Error:', error);
+        // Don't reply on errors for the on:true handler to avoid spam
+    }
+});
+
+// ==================== MOVIE INFO COMMAND (Direct URL) ====================
 Sparky({
     name: "movieinfo|filminfo",
     fromMe: isPublic,
@@ -174,12 +427,12 @@ Sparky({
         const url = args || m.quoted?.text;
         
         if (!url) {
-            return await m.reply('🎬 *Movie Info*\n\nPlease provide a movie URL.\nExample: .movieinfo https://fs-miroir13.lol/films/...');
+            return await m.reply('🎬 *Movie Info*\n\nEntrez une URL de film.\nExemple: .movieinfo https://fs-miroir13.lol/films/...');
         }
 
         // Validate URL
         if (!url.includes('fs-miroir13.lol')) {
-            return await m.reply('❌ *Invalid URL*\nPlease provide a valid movie URL from the search results.');
+            return await m.reply('❌ *URL invalide*\nVeuillez fournir une URL valide des résultats de recherche.');
         }
 
         await m.react('⏳');
@@ -188,7 +441,7 @@ Sparky({
 
         if (!details || !details.title) {
             await m.react('❌');
-            return await m.reply('❌ Could not retrieve movie details.');
+            return await m.reply('❌ Impossible de récupérer les détails du film.');
         }
 
         // Format movie details
@@ -198,22 +451,22 @@ Sparky({
             message += `📽️ *Genres:* ${details.genres.join(', ')}\n`;
         }
         if (details.director) {
-            message += `🎬 *Director:* ${details.director}\n`;
+            message += `🎬 *Réalisateur:* ${details.director}\n`;
         }
         if (details.actors && details.actors.length > 0) {
-            message += `🎭 *Actors:* ${details.actors.slice(0, 5).join(', ')}${details.actors.length > 5 ? '...' : ''}\n`;
+            message += `🎭 *Acteurs:* ${details.actors.slice(0, 5).join(', ')}${details.actors.length > 5 ? '...' : ''}\n`;
         }
         if (details.releaseYear) {
-            message += `📅 *Release Year:* ${details.releaseYear}\n`;
+            message += `📅 *Année:* ${details.releaseYear}\n`;
         }
         if (details.quality) {
-            message += `📺 *Quality:* ${details.quality}\n`;
+            message += `📺 *Qualité:* ${details.quality}\n`;
         }
         if (details.version) {
             message += `🌐 *Version:* ${details.version}\n`;
         }
         if (details.language) {
-            message += `🗣️ *Language:* ${details.language}\n`;
+            message += `🗣️ *Langue:* ${details.language}\n`;
         }
         if (details.budget && details.budget !== 'Unknown') {
             message += `💰 *Budget:* ${details.budget}\n`;
@@ -221,11 +474,11 @@ Sparky({
 
         // Add download links if available
         if (details.player && Object.keys(details.player).length > 0) {
-            message += `\n📥 *Download Links:*\n`;
+            message += `\n📥 *Liens de téléchargement:*\n`;
             Object.entries(details.player).forEach(([name, link]) => {
                 message += `• ${name}: ${link}\n`;
             });
-            message += `\n_Use .moviedl <download_url> to get the direct download link._`;
+            message += `\n_Utilisez .moviedl <url> pour télécharger._`;
         }
 
         await m.reply(message);
@@ -234,50 +487,81 @@ Sparky({
     } catch (error) {
         console.error('Movie Info Error:', error);
         await m.react('❌');
-        await m.reply(`❌ Error: ${error.message || 'Failed to get movie details. Please try again.'}`);
+        await m.reply(`❌ Erreur: ${error.message || 'Échec de la récupération des détails.'}`);
     }
 });
 
-// ==================== MOVIE DOWNLOAD COMMAND ====================
+// ==================== MOVIE DOWNLOAD COMMAND (Direct URL) ====================
 Sparky({
     name: "moviedl|filmdl|moviedownload",
     fromMe: isPublic,
-    desc: "Get direct download link for a movie",
+    desc: "Download a movie directly",
     category: "downloader",
 }, async ({ m, client, args }) => {
     try {
         const url = args || m.quoted?.text;
         
         if (!url) {
-            return await m.reply('📥 *Movie Download*\n\nPlease provide a download URL.\nExample: .moviedl https://vidzy.org/d/...');
+            return await m.reply('📥 *Movie Download*\n\nEntrez une URL de téléchargement.\nExemple: .moviedl https://vidzy.org/d/...');
         }
 
         await m.react('⏳');
 
+        // Get download info
         const downloadInfo = await getDownloadInfo(url);
 
         if (!downloadInfo || !downloadInfo.download) {
             await m.react('❌');
-            return await m.reply('❌ Could not retrieve download link. The link may have expired or is invalid.');
+            return await m.reply('❌ Impossible de récupérer le lien. Le lien a peut-être expiré.');
         }
 
-        // Format download info
-        let message = `📥 *Download Ready*\n\n`;
-        
-        if (downloadInfo.filename) {
-            message += `📁 *Filename:* ${downloadInfo.filename}\n`;
-        }
-        if (downloadInfo.size) {
-            message += `📏 *Size:* ${downloadInfo.size}\n`;
-        }
-        message += `\n🔗 *Download Link:*\n${downloadInfo.download}`;
+        const fileSizeBytes = parseSizeToBytes(downloadInfo.size);
+        const fileSizeMB = fileSizeBytes / (1024 * 1024);
+        const MAX_SIZE_MB = 50;
 
-        await m.reply(message);
-        await m.react('✅');
+        // Send progress message
+        await m.reply(`📥 *Téléchargement en cours...*\n\n📁 *Fichier:* ${downloadInfo.filename}\n📏 *Taille:* ${downloadInfo.size}\n\n⏳ Veuillez patienter...`);
+
+        try {
+            // Download the file
+            const response = await axios({
+                method: 'GET',
+                url: downloadInfo.download,
+                responseType: 'arraybuffer',
+                timeout: DOWNLOAD_TIMEOUT
+            });
+
+            const buffer = Buffer.from(response.data);
+            const actualSizeMB = buffer.length / (1024 * 1024);
+
+            // Send as document if > 50MB, otherwise as video
+            if (actualSizeMB > MAX_SIZE_MB) {
+                await client.sendMessage(m.jid, {
+                    document: buffer,
+                    mimetype: 'video/mp4',
+                    fileName: downloadInfo.filename || 'movie.mp4',
+                    caption: `🎬 *Film téléchargé*\n📏 *Taille:* ${formatBytes(buffer.length)}`
+                }, { quoted: m });
+            } else {
+                await client.sendMessage(m.jid, {
+                    video: buffer,
+                    caption: `🎬 *Film téléchargé*\n📏 *Taille:* ${formatBytes(buffer.length)}`
+                }, { quoted: m });
+            }
+
+            await m.react('✅');
+
+        } catch (downloadError) {
+            console.error('Download Error:', downloadError);
+            
+            // If download fails, send the link instead
+            await m.reply(`❌ Échec du téléchargement direct.\n\n🔗 *Lien de téléchargement:*\n${downloadInfo.download}\n\n📁 *Fichier:* ${downloadInfo.filename}\n📏 *Taille:* ${downloadInfo.size}`);
+            await m.react('⚠️');
+        }
 
     } catch (error) {
         console.error('Movie Download Error:', error);
         await m.react('❌');
-        await m.reply(`❌ Error: ${error.message || 'Failed to get download link. Please try again.'}`);
+        await m.reply(`❌ Erreur: ${error.message || 'Échec du téléchargement.'}`);
     }
 });
