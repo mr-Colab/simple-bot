@@ -4,10 +4,14 @@
  * 
  * Usage: node multi.js
  * Then open http://localhost:8000 in your browser
+ * 
+ * API Endpoints available for external frontend integration.
+ * See API_DOCUMENTATION.md for details.
  */
 
 const express = require("express");
 const http = require("http");
+const cors = require("cors");
 const cron = require('node-cron');
 const axios = require('axios');
 const fs = require('fs');
@@ -19,6 +23,17 @@ const { setupDashboard, handleMessage, handleConnection } = require("./lib/dashb
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+
+// CORS Configuration - Allow external frontend access
+const corsOrigin = process.env.CORS_ORIGIN || '*';
+const corsOptions = {
+  origin: corsOrigin,
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  // Only enable credentials when a specific origin is set (not wildcard)
+  credentials: corsOrigin !== '*'
+};
+app.use(cors(corsOptions));
 
 // Detect platform
 let platform = process.env.REPLIT_USER ? "REPLIT"
@@ -35,6 +50,7 @@ console.log("║     LD7 V1 MULTI-USER MODE          ║");
 console.log("╠════════════════════════════════════════╣");
 console.log("║  Running on platform:", platform.padEnd(17), "║");
 console.log("║  Port:", String(PORT).padEnd(30), "║");
+console.log("║  CORS:", (process.env.CORS_ORIGIN || 'All origins').substring(0, 28).padEnd(30), "║");
 console.log("╚════════════════════════════════════════╝");
 
 // Setup dashboard

@@ -18,6 +18,7 @@
   "dependencies": {
     "@viper-x/fancytext": "^1.0.2",
     "axios": "^1.7.9",
+    "cors": "^2.8.5",
     "baileys": "^7.0.0-rc.6",
     "browser-id3-writer": "^4.4.0",
     "cheerio": "^1.0.0",
