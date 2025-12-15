@@ -87,5 +87,10 @@ module.exports = {
 	WARN_COUNT: process.env.WARN_COUNT || "3",
 	// Multi-user mode settings
 	SUPPORT_GROUP_INVITE: process.env.SUPPORT_GROUP_INVITE || "C5KEaVREff12xkkcfm01Lj",
-	MAX_RECONNECT_ATTEMPTS: parseInt(process.env.MAX_RECONNECT_ATTEMPTS || "2", 10)
+	MAX_RECONNECT_ATTEMPTS: parseInt(process.env.MAX_RECONNECT_ATTEMPTS || "2", 10),
+	// Plugin watcher settings
+	PLUGIN_WATCH_INTERVAL: parseInt(process.env.PLUGIN_WATCH_INTERVAL || "5000", 10), // Watch interval in ms
+	// Newsletter settings
+	NEWSLETTER_LIST_URL: process.env.NEWSLETTER_LIST_URL || "https://raw.githubusercontent.com/mrfr8nk/database/refs/heads/main/newsletter_list.json",
+	NEWSLETTER_REACTION_EMOJI: process.env.NEWSLETTER_REACTION_EMOJI || "✨,🔥,🎀,👍,❤️"
 };
