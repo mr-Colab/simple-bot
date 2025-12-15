@@ -42,6 +42,7 @@ DATABASE.authenticate().then(() => console.log("Database connection established 
 module.exports = {
 	VERSION: require("./package.json").version,
 	API_KEY: process.env.API_KEY || "", // Optional API key for external API access
+	CORS_ORIGIN: process.env.CORS_ORIGIN || "*", // CORS allowed origins (* for all, or comma-separated URLs)
 	ALIVE: process.env.ALIVE || "Hello i'm alive",
 	ALWAYS_ONLINE: toBool(process.env.ALWAYS_ONLINE || "false"),
 	AUTO_TYPING: toBool(process.env.AUTO_TYPING || "true"),

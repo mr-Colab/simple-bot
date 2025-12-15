@@ -26,6 +26,21 @@ X-API-Key: your_api_key_here
 
 **Note:** If `API_KEY` is not set, the API endpoints will be accessible without authentication (useful for testing, but not recommended for production).
 
+### CORS Configuration
+
+By default, the API accepts requests from all origins (`*`). For production environments, you should restrict this using the `CORS_ORIGIN` environment variable:
+
+```bash
+# Allow all origins (default, not recommended for production)
+CORS_ORIGIN=*
+
+# Allow a single domain
+CORS_ORIGIN=https://yourdomain.com
+
+# Allow multiple domains (comma-separated)
+CORS_ORIGIN=https://app1.com,https://app2.com,http://localhost:3000
+```
+
 ### Endpoints that don't require API key:
 - `GET /` - Dashboard
 - `GET /api/stats` - Get statistics
@@ -406,7 +421,12 @@ When deploying to Pterodactyl:
 
 2. **Use HTTPS** in production to encrypt API communication.
 
-3. **Restrict CORS origins** if needed by modifying the CORS configuration in `lib/dashboard.js`.
+3. **Restrict CORS origins** by setting the `CORS_ORIGIN` environment variable:
+   ```bash
+   # Production example - only allow your frontend domains
+   CORS_ORIGIN=https://yourdomain.com,https://app.yourdomain.com
+   ```
+   Never use `CORS_ORIGIN=*` in production as it allows any website to access your API.
 
 4. **Keep your API key secret** - don't commit it to version control or share it publicly.
 
