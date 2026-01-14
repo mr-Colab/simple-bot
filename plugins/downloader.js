@@ -6,11 +6,14 @@ const gis = require("g-i-s");
 const config = require("../config.js");
 const lang = getString('download');
 
+// Neoxr API Key from config
+const NEOXR_API_KEY = config.NEOXR_API_KEY;
+
 // ==================== INSTAGRAM DOWNLOAD ====================
 Sparky({
-    name: "ig|insta|instagram",
+    name: "ig",
     fromMe: isPublic,
-    desc: "Instagram media downloader with quality options",
+    desc: "Instagram media downloader",
     category: "downloader",
 }, async ({ m, client, args }) => {
     try {
@@ -27,9 +30,9 @@ Sparky({
 
         await m.react('⏳');
 
-        const apiUrl = `https://dev-priyanshi.onrender.com/api/alldl?url=${encodeURIComponent(url)}`;
+        const apiUrl = `https://api.neoxr.eu/api/ig?url=${encodeURIComponent(url)}&apikey=${NEOXR_API_KEY}`;
         const response = await axios.get(apiUrl, {
-            timeout: 30000,
+            timeout: 60000,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
@@ -39,26 +42,51 @@ Sparky({
             throw new Error('Invalid API response');
         }
 
-        const videoData = response.data.data;
-        const videoUrl = videoData.high || videoData.low;
-
-        if (!videoUrl) {
+        const mediaData = response.data.data;
+        
+        // Handle multiple media items
+        if (Array.isArray(mediaData) && mediaData.length > 0) {
+            for (const item of mediaData) {
+                const mediaUrl = item.url;
+                if (!mediaUrl) continue;
+                
+                // Download media
+                const mediaResponse = await axios.get(mediaUrl, {
+                    responseType: 'arraybuffer',
+                    timeout: 60000
+                });
+                const buffer = Buffer.from(mediaResponse.data, 'binary');
+                
+                // Determine if video or image based on URL or type
+                const isVideo = item.type === 'video' || mediaUrl.includes('.mp4');
+                
+                if (isVideo) {
+                    await client.sendMessage(m.jid, {
+                        video: buffer,
+                        caption: '📸 *Instagram Media*'
+                    }, { quoted: m });
+                } else {
+                    await client.sendMessage(m.jid, {
+                        image: buffer,
+                        caption: '📸 *Instagram Media*'
+                    }, { quoted: m });
+                }
+            }
+        } else if (mediaData.url) {
+            // Single media item
+            const mediaResponse = await axios.get(mediaData.url, {
+                responseType: 'arraybuffer',
+                timeout: 60000
+            });
+            const buffer = Buffer.from(mediaResponse.data, 'binary');
+            
+            await client.sendMessage(m.jid, {
+                video: buffer,
+                caption: '📸 *Instagram Media*'
+            }, { quoted: m });
+        } else {
             throw new Error('No downloadable media found');
         }
-
-        // Download and send
-        const videoResponse = await axios.get(videoUrl, {
-            responseType: 'arraybuffer',
-            timeout: 60000
-        });
-
-        const videoBuffer = Buffer.from(videoResponse.data, 'binary');
-        const caption = `📸 *${videoData.title || 'Instagram Media'}*\n🌐 *Source:* Instagram`;
-
-        await client.sendMessage(m.jid, {
-            video: videoBuffer,
-            caption: caption
-        }, { quoted: m });
 
         await m.react('✅');
     } catch (error) {
@@ -70,10 +98,10 @@ Sparky({
 
 // ==================== AI/GPT COMMAND ====================
 Sparky({
-    name: "ai|ask|gpt",
+    name: "ai",
     fromMe: isPublic,
     category: "misc",
-    desc: "AI assistant powered by Aria API"
+    desc: "AI assistant powered by GPT-4"
 }, async ({ m, client, args }) => {
     try {
         const question = args || m.quoted?.text;
@@ -84,32 +112,26 @@ Sparky({
 
         await m.react('⏳');
 
-        // Aria API configuration
-        const ARIA_API = "https://kaiz-apis.gleeze.com/api/aria";
-        const API_KEY = "cf2ca612-296f-45ba-abbc-473f18f991eb";
+        // Generate unique session ID based on user's JID for conversation context
+        const sessionId = m.sender.split('@')[0];
 
-        // Get user ID for context
-        const userId = m.jid.split('@')[0];
+        // Build API URL with Neoxr GPT-4 API
+        const apiUrl = `https://api.neoxr.eu/api/gpt4-session?q=${encodeURIComponent(question)}&session=${sessionId}&apikey=${NEOXR_API_KEY}`;
 
-        // Build API URL
-        const apiUrl = `${ARIA_API}?ask=${encodeURIComponent(question)}&uid=${userId}&apikey=${API_KEY}`;
-
-        // Call Aria API
+        // Call Neoxr GPT-4 API
         const response = await axios.get(apiUrl, { 
-            timeout: 30000,
+            timeout: 60000,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
         });
 
-        const ariaData = response.data;
-
-        if (!ariaData || !ariaData.response) {
+        if (!response.data?.status || !response.data.data) {
             throw new Error('No response from AI API');
         }
 
-        // Format the response
-        let formattedResponse = ariaData.response;
+        // Get the response text
+        let formattedResponse = response.data.data.response || response.data.data;
 
         // Truncate if too long (WhatsApp message limit)
         if (formattedResponse.length > 3500) {
@@ -130,7 +152,7 @@ Sparky({
 
 // ==================== APK DOWNLOADER ====================
 Sparky({
-    name: "apk|modapk|apkdownload",
+    name: "apk",
     fromMe: isPublic,
     category: "downloader",
     desc: "Download APK files by app name"
@@ -247,8 +269,9 @@ Sparky(
     }
 );
 
+// ==================== PINTEREST DOWNLOAD ====================
 Sparky({
-    name: "pintrest",
+    name: "pinterest",
     fromMe: isPublic,
     category: "downloader",
     desc: "Download images and content from Pinterest",
@@ -257,31 +280,72 @@ async ({
     m, client, args
 }) => {
     try {
-        let match = args || m.quoted?.text;
-        if (!match) return await m.reply(lang.NEED_URL);
-        await m.react('⬇️');
-        //if (!match.includes("pin.it")) return await m.reply("_Please provide a valid Pinterest URL_");
-        const result = await getJson(config.API + "/api/downloader/pin?url=" + match);
-        await m.sendFromUrl(result.data.url, { caption: result.data.created_at });
+        const url = args || m.quoted?.text;
+        if (!url) return await m.reply('📌 *Pinterest Downloader*\n\nPlease provide a Pinterest URL.\nExample: .pinterest https://pin.it/xxxxx');
+        
+        await m.react('⏳');
+        
+        const apiUrl = `https://api.neoxr.eu/api/pin?url=${encodeURIComponent(url)}&apikey=${NEOXR_API_KEY}`;
+        const response = await axios.get(apiUrl, {
+            timeout: 60000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+
+        if (!response.data?.status || !response.data.data) {
+            throw new Error('Invalid API response');
+        }
+
+        const mediaData = response.data.data;
+        const mediaUrl = mediaData.url || mediaData.image;
+        
+        if (!mediaUrl) {
+            throw new Error('No downloadable media found');
+        }
+
+        // Download media
+        const mediaResponse = await axios.get(mediaUrl, {
+            responseType: 'arraybuffer',
+            timeout: 60000
+        });
+        const buffer = Buffer.from(mediaResponse.data, 'binary');
+        
+        // Check if video or image
+        const isVideo = mediaUrl.includes('.mp4') || mediaData.type === 'video';
+        
+        if (isVideo) {
+            await client.sendMessage(m.jid, {
+                video: buffer,
+                caption: `📌 *Pinterest Media*\n${mediaData.title || ''}`
+            }, { quoted: m });
+        } else {
+            await client.sendMessage(m.jid, {
+                image: buffer,
+                caption: `📌 *Pinterest Media*\n${mediaData.title || ''}`
+            }, { quoted: m });
+        }
+        
         await m.react('✅');
     } catch (error) {
+        console.error('Pinterest Command Error:', error);
         await m.react('❌');
-        console.error(error);
+        await m.reply(`❌ Error: ${error.message || 'Failed to download Pinterest media'}`);
     }
 });
 
 // ==================== FACEBOOK DOWNLOAD ====================
 Sparky({
-    name: "fb|facebook|fbvideo",
+    name: "fb",
     fromMe: isPublic,
     category: "downloader",
-    desc: "Facebook video downloader with quality options",
+    desc: "Facebook video downloader",
 }, async ({ m, client, args }) => {
     try {
         const url = args || m.quoted?.text;
         
         if (!url) {
-            return await m.reply('📥 *Facebook Video Downloader*\n\nPlease provide a Facebook video URL.\nExample: .fb https://facebook.com/share/v/16rHWGkeet/');
+            return await m.reply('📥 *Facebook Video Downloader*\n\nPlease provide a Facebook video URL.\nExample: .fb https://facebook.com/share/v/xxxxx');
         }
 
         // Validate Facebook URL
@@ -291,9 +355,9 @@ Sparky({
 
         await m.react('⏳');
 
-        const apiUrl = `https://dev-priyanshi.onrender.com/api/alldl?url=${encodeURIComponent(url)}`;
+        const apiUrl = `https://api.neoxr.eu/api/fb?url=${encodeURIComponent(url)}&apikey=${NEOXR_API_KEY}`;
         const response = await axios.get(apiUrl, {
-            timeout: 30000,
+            timeout: 60000,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
@@ -304,7 +368,7 @@ Sparky({
         }
 
         const videoData = response.data.data;
-        const videoUrl = videoData.high || videoData.low;
+        const videoUrl = videoData.hd || videoData.sd || videoData.url;
 
         if (!videoUrl) {
             throw new Error('No downloadable video found');
@@ -313,7 +377,7 @@ Sparky({
         // Download and send
         const videoResponse = await axios.get(videoUrl, {
             responseType: 'arraybuffer',
-            timeout: 60000
+            timeout: 120000
         });
 
         const videoBuffer = Buffer.from(videoResponse.data, 'binary');
@@ -334,7 +398,7 @@ Sparky({
 
 // ==================== TIKTOK DOWNLOAD ====================
 Sparky({
-    name: "tiktok|tt",
+    name: "tiktok",
     fromMe: isPublic,
     category: "downloader",
     desc: "TikTok video downloader",
@@ -353,9 +417,9 @@ Sparky({
 
         await m.react('⏳');
 
-        const apiUrl = `https://dev-priyanshi.onrender.com/api/alldl?url=${encodeURIComponent(url)}`;
+        const apiUrl = `https://api.neoxr.eu/api/tiktok?url=${encodeURIComponent(url)}&apikey=${NEOXR_API_KEY}`;
         const response = await axios.get(apiUrl, {
-            timeout: 30000,
+            timeout: 60000,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
@@ -366,7 +430,7 @@ Sparky({
         }
 
         const videoData = response.data.data;
-        const videoUrl = videoData.play || videoData.high || videoData.low;
+        const videoUrl = videoData.nowm || videoData.wm || videoData.url;
 
         if (!videoUrl) {
             throw new Error('No downloadable video found');
@@ -375,13 +439,11 @@ Sparky({
         // Download and send
         const videoResponse = await axios.get(videoUrl, {
             responseType: 'arraybuffer',
-            timeout: 60000
+            timeout: 120000
         });
 
         const videoBuffer = Buffer.from(videoResponse.data, 'binary');
-        const caption = `🎵 *${videoData.title || 'TikTok Video'}*\n` +
-                       `👤 *Creator:* ${videoData.author || 'Unknown'}\n` +
-                       `🌐 *Source:* TikTok`;
+        const caption = `🎵 *${videoData.title || 'TikTok Video'}*\n👤 *Creator:* ${videoData.author || 'Unknown'}\n🌐 *Source:* TikTok`;
 
         await client.sendMessage(m.jid, {
             video: videoBuffer,

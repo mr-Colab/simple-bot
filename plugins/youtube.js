@@ -8,7 +8,12 @@ const {
 } = require("../lib");
 const { getString, isUrl, convertToMp3 } = require('./pluginsCore');
 const fetch = require('node-fetch');
+const axios = require('axios');
+const config = require('../config.js');
 const lang = getString('download');
+
+// Neoxr API Key from config
+const NEOXR_API_KEY = config.NEOXR_API_KEY;
 
 
 Sparky({
@@ -123,3 +128,126 @@ Sparky({
       m.reply(error);
     }
   });
+
+// ==================== YOUTUBE MP3 DOWNLOAD (Neoxr API) ====================
+Sparky({
+  name: "ytmp3",
+  fromMe: isPublic,
+  category: "youtube",
+  desc: "Download YouTube audio as MP3"
+}, async ({ m, client, args }) => {
+  try {
+    const url = args || m.quoted?.text;
+    
+    if (!url) {
+      return await m.reply('🎵 *YouTube MP3 Downloader*\n\nPlease provide a YouTube URL.\nExample: .ytmp3 https://youtube.com/watch?v=xxxxx');
+    }
+
+    // Validate YouTube URL
+    if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+      return await m.reply('❌ *Invalid YouTube URL*\nPlease provide a valid YouTube URL.');
+    }
+
+    await m.react('⏳');
+    await m.reply('🎵 _Downloading audio... Please wait._');
+
+    const apiUrl = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(url)}&type=audio&quality=128kbps&apikey=${NEOXR_API_KEY}`;
+    const response = await axios.get(apiUrl, {
+      timeout: 120000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+
+    if (!response.data?.status || !response.data.data) {
+      throw new Error('Invalid API response');
+    }
+
+    const audioData = response.data.data;
+    const audioUrl = audioData.url;
+
+    if (!audioUrl) {
+      throw new Error('No downloadable audio found');
+    }
+
+    // Download audio
+    const audioResponse = await axios.get(audioUrl, {
+      responseType: 'arraybuffer',
+      timeout: 180000
+    });
+
+    const audioBuffer = Buffer.from(audioResponse.data, 'binary');
+
+    // Send audio using sendMsg like the play command
+    await m.sendMsg(m.jid, audioBuffer, { quoted: m, mimetype: 'audio/mpeg' }, "audio");
+
+    await m.react('✅');
+  } catch (error) {
+    console.error('YouTube MP3 Command Error:', error);
+    await m.react('❌');
+    await m.reply(`❌ Error: ${error.message || 'Failed to download YouTube audio'}`);
+  }
+});
+
+// ==================== YOUTUBE MP4 DOWNLOAD (Neoxr API) ====================
+Sparky({
+  name: "ytmp4",
+  fromMe: isPublic,
+  category: "youtube",
+  desc: "Download YouTube video as MP4"
+}, async ({ m, client, args }) => {
+  try {
+    const url = args || m.quoted?.text;
+    
+    if (!url) {
+      return await m.reply('🎬 *YouTube MP4 Downloader*\n\nPlease provide a YouTube URL.\nExample: .ytmp4 https://youtube.com/watch?v=xxxxx');
+    }
+
+    // Validate YouTube URL
+    if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+      return await m.reply('❌ *Invalid YouTube URL*\nPlease provide a valid YouTube URL.');
+    }
+
+    await m.react('⏳');
+    await m.reply('🎬 _Downloading video... Please wait._');
+
+    const apiUrl = `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(url)}&type=video&quality=720p&apikey=${NEOXR_API_KEY}`;
+    const response = await axios.get(apiUrl, {
+      timeout: 120000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+
+    if (!response.data?.status || !response.data.data) {
+      throw new Error('Invalid API response');
+    }
+
+    const videoData = response.data.data;
+    const videoUrl = videoData.url;
+
+    if (!videoUrl) {
+      throw new Error('No downloadable video found');
+    }
+
+    // Download video
+    const videoResponse = await axios.get(videoUrl, {
+      responseType: 'arraybuffer',
+      timeout: 300000
+    });
+
+    const videoBuffer = Buffer.from(videoResponse.data, 'binary');
+    const caption = `🎬 *${videoData.title || 'YouTube Video'}*\n🌐 *Source:* YouTube`;
+
+    await client.sendMessage(m.jid, {
+      video: videoBuffer,
+      caption: caption
+    }, { quoted: m });
+
+    await m.react('✅');
+  } catch (error) {
+    console.error('YouTube MP4 Command Error:', error);
+    await m.react('❌');
+    await m.reply(`❌ Error: ${error.message || 'Failed to download YouTube video'}`);
+  }
+});
