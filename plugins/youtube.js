@@ -143,8 +143,18 @@ Sparky({
       return await m.reply('🎵 *YouTube MP3 Downloader*\n\nPlease provide a YouTube URL.\nExample: .ytmp3 https://youtube.com/watch?v=xxxxx');
     }
 
-    // Validate YouTube URL
-    if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+    // Validate YouTube URL using URL parsing for security
+    let isValidYouTube = false;
+    try {
+      const parsedUrl = new URL(url);
+      const hostname = parsedUrl.hostname.toLowerCase();
+      isValidYouTube = hostname === 'youtube.com' || hostname === 'www.youtube.com' || 
+                       hostname === 'youtu.be' || hostname === 'm.youtube.com';
+    } catch (e) {
+      isValidYouTube = false;
+    }
+    
+    if (!isValidYouTube) {
       return await m.reply('❌ *Invalid YouTube URL*\nPlease provide a valid YouTube URL.');
     }
 
@@ -203,8 +213,18 @@ Sparky({
       return await m.reply('🎬 *YouTube MP4 Downloader*\n\nPlease provide a YouTube URL.\nExample: .ytmp4 https://youtube.com/watch?v=xxxxx');
     }
 
-    // Validate YouTube URL
-    if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+    // Validate YouTube URL using URL parsing for security
+    let isValidYouTube = false;
+    try {
+      const parsedUrl = new URL(url);
+      const hostname = parsedUrl.hostname.toLowerCase();
+      isValidYouTube = hostname === 'youtube.com' || hostname === 'www.youtube.com' || 
+                       hostname === 'youtu.be' || hostname === 'm.youtube.com';
+    } catch (e) {
+      isValidYouTube = false;
+    }
+    
+    if (!isValidYouTube) {
       return await m.reply('❌ *Invalid YouTube URL*\nPlease provide a valid YouTube URL.');
     }
 
