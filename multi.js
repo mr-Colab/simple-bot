@@ -19,7 +19,7 @@ const { setupDashboard, handleMessage, handleConnection } = require("./lib/dashb
 const { initPluginWatcher } = require("./lib/pluginWatcher");
 
 const app = express();
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 6916;
 
 // Detect platform
 let platform = process.env.REPLIT_USER ? "REPLIT"
