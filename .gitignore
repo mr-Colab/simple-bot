@@ -144,3 +144,4 @@ data/assets/audio/
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+package-lock.json
