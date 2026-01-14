@@ -42,6 +42,7 @@ DATABASE.authenticate().then(() => console.log("Database connection established 
 module.exports = {
 	VERSION: require("./package.json").version,
 	API_KEY: process.env.API_KEY || "", // Optional API key for external API access
+	NEOXR_API_KEY: process.env.NEOXR_API_KEY || "ANDYMRLITT", // Neoxr API key for media downloads
 	CORS_ORIGIN: process.env.CORS_ORIGIN || "*", // CORS allowed origins (* for all, or comma-separated URLs)
 	ALIVE: process.env.ALIVE || "Hello i'm alive",
 	ALWAYS_ONLINE: toBool(process.env.ALWAYS_ONLINE || "false"),
